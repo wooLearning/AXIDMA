@@ -41,6 +41,7 @@
           svg.setAttribute("stroke-linejoin", "round");
           svg.setAttribute("class", className);
           svg.setAttribute("aria-hidden", "true");
+          if (icon.id) svg.setAttribute("id", icon.id);
           if (!/\bw-/.test(className)) svg.classList.add("w-5");
           if (!/\bh-/.test(className)) svg.classList.add("h-5");
           svg.innerHTML = icons[name] || "<circle cx='12' cy='12' r='9'/>";
@@ -82,6 +83,9 @@
     }
 
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    function setElementClass(element, className) {
+      if (element) element.setAttribute('class', className);
+    }
 
     // AXI4 Transaction Animation Logic (from chapter 2)
     let isAxiAnimating = false;
@@ -237,7 +241,7 @@
 
       // Fetch BD0
       pointer.style.opacity = '1';
-      dmaIcon.className = "w-4 h-4 text-[#3182f6] animate-pulse";
+      setElementClass(dmaIcon, "w-4 h-4 text-[#3182f6] animate-pulse inline-icon");
       bd0.classList.add('bd-active');
       bd0Status.innerHTML = `<i data-lucide="loader" class="w-3 h-3 animate-spin"></i> Fetching...`;
       bd0Status.className = "font-bold text-[#3182f6] flex items-center gap-1";
@@ -245,7 +249,7 @@
       await sleep(1500);
 
       // Transfer BD0 (Gather Data)
-      dmaIcon.className = "w-4 h-4 text-purple-500 animate-pulse";
+      setElementClass(dmaIcon, "w-4 h-4 text-purple-500 animate-pulse inline-icon");
       dataChunk0.classList.add('data-chunk-active');
       bd0Status.innerHTML = `<i data-lucide="arrow-right-left" class="w-3 h-3 animate-pulse"></i> Transferring 4KB...`;
       bd0Status.className = "font-bold text-purple-600 flex items-center gap-1";
@@ -260,7 +264,7 @@
       dataChunk0.classList.add('data-chunk-done');
 
       // Update BD0
-      dmaIcon.className = "w-4 h-4 text-[#f59e0b] animate-spin";
+      setElementClass(dmaIcon, "w-4 h-4 text-[#f59e0b] animate-spin inline-icon");
       bd0.classList.remove('bd-active');
       bd0.classList.add('bd-updating');
       bd0Status.innerHTML = `<i data-lucide="save" class="w-3 h-3"></i> Updating Status...`;
@@ -278,7 +282,7 @@
 
       // Move to BD1 ----------------------------------------
       pointer.style.top = '145px'; 
-      dmaIcon.className = "w-4 h-4 text-[#3182f6] animate-pulse";
+      setElementClass(dmaIcon, "w-4 h-4 text-[#3182f6] animate-pulse inline-icon");
       await sleep(800);
 
       // Fetch BD1
@@ -289,7 +293,7 @@
       await sleep(1500);
 
       // Transfer BD1 (Gather Data)
-      dmaIcon.className = "w-4 h-4 text-pink-500 animate-pulse";
+      setElementClass(dmaIcon, "w-4 h-4 text-pink-500 animate-pulse inline-icon");
       dataChunk1.classList.add('data-chunk-active');
       bd1Status.innerHTML = `<i data-lucide="arrow-right-left" class="w-3 h-3 animate-pulse"></i> Transferring 2KB...`;
       bd1Status.className = "font-bold text-pink-600 flex items-center gap-1";
@@ -303,7 +307,7 @@
       dataChunk1.classList.add('data-chunk-done');
 
       // Update BD1
-      dmaIcon.className = "w-4 h-4 text-[#f59e0b] animate-spin";
+      setElementClass(dmaIcon, "w-4 h-4 text-[#f59e0b] animate-spin inline-icon");
       bd1.classList.remove('bd-active');
       bd1.classList.add('bd-updating');
       bd1Status.innerHTML = `<i data-lucide="save" class="w-3 h-3"></i> Updating (EOF)...`;
@@ -321,7 +325,7 @@
 
       // Check Tail ----------------------------------------
       pointer.style.top = '270px';
-      dmaIcon.className = "w-4 h-4 text-red-500 animate-bounce";
+      setElementClass(dmaIcon, "w-4 h-4 text-red-500 animate-bounce inline-icon");
       await sleep(800);
 
       bd2.classList.add('bd-active');
@@ -330,7 +334,7 @@
       await sleep(1500);
 
       // Interrupt
-      dmaIcon.className = "w-4 h-4 text-[#22c55e]";
+      setElementClass(dmaIcon, "w-4 h-4 text-[#22c55e] inline-icon");
       lucide.createIcons();
       await sleep(2000);
       

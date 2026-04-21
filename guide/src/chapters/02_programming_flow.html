@@ -146,7 +146,85 @@
           </div>
         </div>
 
-        <h3 class="text-xl font-bold text-[#191f28] mt-10 mb-6">2.6 AXI4 5개 독립 채널 애니메이션 시뮬레이션</h3>
+        <div class="mt-10 bg-[#f9fafb] border border-gray-200 rounded-2xl p-6">
+          <h3 class="text-xl font-bold text-[#191f28] mb-3">2.6 AXI4 VALID/READY 타이밍 핵심</h3>
+          <p class="text-[14px] text-[#4e5968] mb-5 leading-relaxed">
+            AMBA AXI4 공식 규격의 기본 규칙은 단순합니다. 각 채널은 독립적으로 움직이고,
+            <strong>VALID와 READY가 같은 rising edge에서 동시에 1일 때만 1 beat가 전송</strong>됩니다.
+            VALID가 먼저 올라오면 payload와 제어 정보는 handshake가 끝날 때까지 안정적으로 유지되어야 합니다.
+          </p>
+
+          <div class="wide-visual bg-white border border-gray-200 rounded-xl p-4">
+            <svg class="wide-visual-canvas" viewBox="0 0 960 430" role="img" aria-label="AXI4 valid ready timing diagram" style="display:block;margin:0 auto;">
+              <defs>
+                <marker id="timing-arrow-blue" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L8,4 L0,8 Z" fill="#3182f6"></path>
+                </marker>
+                <marker id="timing-arrow-green" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                  <path d="M0,0 L8,4 L0,8 Z" fill="#22c55e"></path>
+                </marker>
+              </defs>
+
+              <rect x="12" y="12" width="936" height="406" rx="18" fill="#ffffff" stroke="#e5e8eb"></rect>
+              <text x="44" y="48" fill="#191f28" font-size="18" font-weight="900">Read Transaction: AR handshake 이후 R beat들이 돌아옴</text>
+              <text x="44" y="232" fill="#191f28" font-size="18" font-weight="900">Write Transaction: AW/W handshake 이후 B response가 돌아옴</text>
+
+              <line x1="160" y1="78" x2="890" y2="78" stroke="#e5e7eb"></line>
+              <line x1="160" y1="116" x2="890" y2="116" stroke="#e5e7eb"></line>
+              <line x1="160" y1="154" x2="890" y2="154" stroke="#e5e7eb"></line>
+              <text x="48" y="84" fill="#4e5968" font-size="13" font-weight="800">ARVALID</text>
+              <text x="48" y="122" fill="#4e5968" font-size="13" font-weight="800">ARREADY</text>
+              <text x="48" y="160" fill="#4e5968" font-size="13" font-weight="800">RVALID/RLAST</text>
+
+              <polyline points="170,92 250,92 250,68 390,68 390,92 890,92" fill="none" stroke="#3182f6" stroke-width="4" stroke-linejoin="round"></polyline>
+              <polyline points="170,130 320,130 320,106 390,106 390,130 890,130" fill="none" stroke="#60a5fa" stroke-width="4" stroke-linejoin="round"></polyline>
+              <rect x="322" y="58" width="68" height="82" rx="8" fill="#eff7ff" stroke="#3182f6"></rect>
+              <text x="356" y="102" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="900">주소 전달</text>
+              <path d="M392 99 C440 99 450 154 500 154" fill="none" stroke="#3182f6" stroke-width="3" marker-end="url(#timing-arrow-blue)"></path>
+
+              <polyline points="170,168 500,168 500,144 610,144 610,168 640,168 640,144 750,144 750,168 780,168 780,144 860,144 860,168 890,168" fill="none" stroke="#2563eb" stroke-width="4" stroke-linejoin="round"></polyline>
+              <text x="552" y="139" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="800">DATA0</text>
+              <text x="696" y="139" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="800">DATA1</text>
+              <text x="820" y="139" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="900">LAST</text>
+
+              <line x1="160" y1="260" x2="890" y2="260" stroke="#e5e7eb"></line>
+              <line x1="160" y1="298" x2="890" y2="298" stroke="#e5e7eb"></line>
+              <line x1="160" y1="336" x2="890" y2="336" stroke="#e5e7eb"></line>
+              <line x1="160" y1="374" x2="890" y2="374" stroke="#e5e7eb"></line>
+              <text x="48" y="266" fill="#4e5968" font-size="13" font-weight="800">AWVALID</text>
+              <text x="48" y="304" fill="#4e5968" font-size="13" font-weight="800">WVALID/WLAST</text>
+              <text x="48" y="342" fill="#4e5968" font-size="13" font-weight="800">BVALID</text>
+              <text x="48" y="380" fill="#4e5968" font-size="13" font-weight="800">READY</text>
+
+              <polyline points="170,274 240,274 240,250 360,250 360,274 890,274" fill="none" stroke="#16a34a" stroke-width="4" stroke-linejoin="round"></polyline>
+              <polyline points="170,312 300,312 300,288 430,288 430,312 460,312 460,288 590,288 590,312 620,312 620,288 750,288 750,312 890,312" fill="none" stroke="#22c55e" stroke-width="4" stroke-linejoin="round"></polyline>
+              <text x="360" y="283" text-anchor="middle" fill="#166534" font-size="11" font-weight="800">WDATA0</text>
+              <text x="524" y="283" text-anchor="middle" fill="#166534" font-size="11" font-weight="800">WDATA1</text>
+              <text x="686" y="283" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="900">WLAST</text>
+              <polyline points="170,350 760,350 760,326 850,326 850,350 890,350" fill="none" stroke="#ef4444" stroke-width="4" stroke-linejoin="round"></polyline>
+              <polyline points="170,388 220,388 220,364 850,364 850,388 890,388" fill="none" stroke="#94a3b8" stroke-width="4" stroke-linejoin="round"></polyline>
+              <path d="M750 300 C790 300 790 326 820 326" fill="none" stroke="#22c55e" stroke-width="3" marker-end="url(#timing-arrow-green)"></path>
+              <text x="814" y="318" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="900">OKAY 응답</text>
+            </svg>
+          </div>
+
+          <div class="grid md:grid-cols-3 gap-4 mt-5">
+            <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-blue-900">Read path</p>
+              <p class="text-[12px] text-blue-800 mt-1 leading-relaxed">AR 채널에서 주소와 burst 정보가 handshake되고, 이후 R 채널에서 여러 data beat가 돌아옵니다. 마지막 beat에는 RLAST가 함께 옵니다.</p>
+            </div>
+            <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-green-900">Write path</p>
+              <p class="text-[12px] text-green-800 mt-1 leading-relaxed">AW 주소와 W 데이터는 독립 채널입니다. WLAST가 마지막 data beat를 표시하고, slave는 모든 write 수락 뒤 B 응답을 냅니다.</p>
+            </div>
+            <div class="bg-[#fff7ed] border border-orange-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-orange-900">DMA 관점</p>
+              <p class="text-[12px] text-orange-800 mt-1 leading-relaxed">DMA는 이 독립 채널 구조 덕분에 memory read와 memory write를 파이프라인으로 겹칠 수 있고, FIFO로 속도 차이를 흡수합니다.</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="text-xl font-bold text-[#191f28] mt-10 mb-6">2.7 AXI4 5개 독립 채널 애니메이션 시뮬레이션</h3>
         <p class="text-sm text-[#4e5968] mb-6">AXI4는 write address, write data, write response, read address, read data 채널을 독립적으로 운용합니다. DMA는 이 구조를 이용해 읽기와 쓰기 파이프를 분리합니다.</p>
         
         <div class="flex gap-4 mb-6">

@@ -53,8 +53,8 @@
 
         <!-- System Big Picture Diagram -->
         <h3 class="text-xl font-bold text-[#191f28] mb-6">1.2 SoC 아키텍처 블록 다이어그램</h3>
-        <div class="wide-visual bg-[#f8f9fa] border border-[#e5e8eb] p-6 rounded-xl">
-          <div class="wide-visual-canvas w-full max-w-4xl relative mx-auto">
+        <div class="wide-visual bg-[#f8f9fa] border border-[#e5e8eb] p-6 rounded-xl flex flex-col items-center">
+          <div class="wide-visual-canvas w-full max-w-4xl relative">
             <div class="flex justify-between items-start mb-10">
               <div class="w-40 flex flex-col items-center">
                 <div class="w-full bg-white border-[3px] border-[#191f28] rounded-xl p-4 shadow-md text-center z-10 relative">
@@ -87,7 +87,7 @@
               </div>
             </div>
 
-            <div class="w-full h-12 bg-gray-200 border-y-2 border-gray-300 flex items-center justify-center shadow-inner relative rounded z-10">
+            <div class="w-full h-12 bg-gray-200 border-y-2 border-gray-300 flex items-center justify-center shadow-inner relative rounded">
               <span class="font-extrabold text-gray-500 tracking-widest uppercase">AXI Interconnect (System Bus)</span>
             </div>
 
@@ -138,15 +138,21 @@
               </div>
             </div>
 
+            <!-- Interconnect vertical lines -->
+            <div class="absolute left-[64px] top-[108px] h-10 w-1 bg-[#8b5cf6] -z-10"></div>
+            <div class="absolute left-[64px] top-[165px] h-8 w-1 bg-[#8b5cf6] -z-10"></div>
+            <div class="absolute right-[225px] top-[108px] h-10 w-1 bg-[#3182f6] -z-10"></div>
+            <div class="absolute right-[175px] top-[108px] h-10 w-1 bg-[#22c55e] -z-10"></div>
+            <div class="absolute left-[140px] top-[165px] h-32 w-1 bg-[#3182f6] -z-10"></div>
+            <div class="absolute left-[295px] top-[165px] h-32 w-1 bg-[#22c55e] -z-10"></div>
           </div>
         </div>
         
-        <!-- Scope note for the base DMA architecture -->
-        <div class="mt-6 bg-[#eef8ff] p-5 rounded-xl border border-blue-200">
-          <h4 class="font-bold text-[#3182f6] text-sm mb-2 flex items-center gap-1"><i data-lucide="info" class="w-4 h-4"></i> 핵심 요약</h4>
+        <!-- Note on Central DMA -->
+        <div class="mt-6 bg-[#fff7ed] p-5 rounded-xl border border-orange-200">
+          <h4 class="font-bold text-orange-600 text-sm mb-2 flex items-center gap-1"><i data-lucide="info" class="w-4 h-4"></i> 참고: Memory-to-Memory 전송을 원한다면?</h4>
           <p class="text-[13px] text-gray-700">
-            <strong>AXI DMA를 이해할 때는 제어면과 데이터면을 분리해서 보는 것이 가장 중요합니다.</strong>
-            CPU는 AXI-Lite로 적은 양의 설정만 넣고, DMA는 AXI4/AXI-Stream 경로에서 큰 데이터를 독립적으로 이동시킵니다.
+            만약 하드웨어 IP 없이 <strong>단순히 DDR RAM의 A 영역에서 B 영역으로 메모리를 복사</strong>하고 싶다면, AXI DMA(Stream 기반)가 아닌 <strong>AXI CDMA (Central DMA)</strong>라는 별도의 IP를 사용하는 것이 일반적입니다. CDMA는 스트림 포트 없이 AXI4 Full 인터페이스만으로 메모리 간 복사를 수행합니다.
           </p>
         </div>
       </div>
