@@ -96,3 +96,24 @@
     .bit-group { transition: all 0.2s; cursor: pointer; }
     .bit-group:hover { transform: scale(1.05); z-index: 10; position: relative; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
     .desc-box { transition: all 0.3s; }
+
+    .wide-visual {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .wide-visual-canvas {
+      min-width: 860px;
+    }
+    @media (max-width: 767px) {
+      .wide-visual {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        padding-bottom: 0.5rem;
+      }
+      .mobile-compact-card {
+        padding: 1.25rem;
+      }
+    }
