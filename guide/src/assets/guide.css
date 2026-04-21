@@ -1,0 +1,98 @@
+    body {
+      font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      background-color: #f2f4f6;
+      color: #191f28;
+      line-height: 1.6;
+    }
+    
+    ::selection {
+      background-color: #3182f6;
+      color: white;
+    }
+
+    .inline-icon {
+      display: inline-block;
+      flex-shrink: 0;
+      stroke: currentColor;
+      vertical-align: -0.125em;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    .data-table th, .data-table td {
+      border: 1px solid #e5e8eb;
+      padding: 12px 16px;
+      text-align: left;
+    }
+    .data-table th {
+      background-color: #f9fafb;
+      font-weight: 700;
+      color: #4e5968;
+    }
+    .data-table td {
+      color: #191f28;
+      vertical-align: top;
+    }
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease-out forwards;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* SG & AXI Animation Classes */
+    .bd-card { transition: all 0.4s ease; border: 2px solid transparent; }
+    .bd-active { border-color: #3182f6; box-shadow: 0 0 0 4px rgba(49, 130, 246, 0.2); transform: translateX(10px); }
+    .bd-updating { border-color: #f59e0b; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2); transform: translateX(10px); }
+    .bd-completed { border-color: #22c55e; background-color: #f0fdf4; opacity: 0.7; }
+    
+    .data-chunk { transition: all 0.4s ease; border: 2px dashed #cbd5e1; }
+    .data-chunk-active { border-color: #8b5cf6; border-style: solid; box-shadow: 0 0 15px rgba(139, 92, 246, 0.4); background-color: #f3e8ff; }
+    .data-chunk-done { border-color: #22c55e; border-style: solid; background-color: #dcfce7; }
+    
+    @keyframes progressFill { from { width: 0%; } to { width: 100%; } }
+    .progress-active { animation: progressFill 2s linear forwards; }
+    
+    /* Stream Packet Animations */
+    .stream-packet { 
+      position: absolute; 
+      transition: transform 2s linear, opacity 0.3s;
+    }
+    
+    @keyframes flowConveyor {
+      0% { background-position: 0 0; }
+      100% { background-position: 40px 0; }
+    }
+    .conveyor-belt {
+      background-image: linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
+      background-size: 40px 40px;
+    }
+    .conveyor-active {
+      animation: flowConveyor 1s linear infinite reverse;
+    }
+    
+    /* AXI4 Full Signal Animations */
+    .packet { transition: all 0.5s ease-in-out; opacity: 0; position: absolute; }
+    .packet.moving-right { transform: translateX(300px); opacity: 1; }
+    .packet.moving-left { transform: translateX(-300px); opacity: 1; }
+
+    /* Bitfield Hover Effects */
+    .bit-group { transition: all 0.2s; cursor: pointer; }
+    .bit-group:hover { transform: scale(1.05); z-index: 10; position: relative; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .desc-box { transition: all 0.3s; }

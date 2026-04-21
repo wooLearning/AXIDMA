@@ -1,0 +1,194 @@
+    <!-- ==========================================
+         Chapter 2. AXI4 Full (Burst Transaction)
+    =========================================== -->
+    <section id="axi4-section" class="tab-content space-y-10">
+      <div class="space-y-4 border-b border-gray-200 pb-6">
+        <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 2. The Power of AXI4 Full</span>
+        <h2 class="text-3xl font-extrabold text-[#191f28]">데이터 고속도로: AXI4 Full 버스트 트랜잭션</h2>
+        <p class="text-[#4e5968] text-lg">DMA가 대용량 데이터를 빠르게 옮기는 핵심은 CPU 제어와 AXI4 burst 데이터 경로를 분리하는 데 있습니다.</p>
+      </div>
+
+      <div class="grid lg:grid-cols-[1.4fr_1fr] gap-6">
+        <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+        <h3 class="text-xl font-bold text-[#191f28] mb-4">2.1 MMIO 실행 시퀀스</h3>
+          <div class="space-y-4">
+            <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
+              <span class="text-[11px] font-bold text-purple-600">STEP 1</span>
+              <p class="text-[14px] text-[#191f28] font-semibold mt-1">CONTROL 레지스터에서 Enable과 Interrupt Enable을 설정</p>
+              <p class="text-[13px] text-[#4e5968] mt-1">DMA 엔진을 활성화합니다. interrupt enable을 함께 켜면 완료 시 CPU가 polling 없이 알림을 받을 수 있습니다.</p>
+            </div>
+            <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
+              <span class="text-[11px] font-bold text-blue-600">STEP 2</span>
+              <p class="text-[14px] text-[#191f28] font-semibold mt-1">SOURCE / DEST 레지스터에 시작 주소 기록</p>
+              <p class="text-[13px] text-[#4e5968] mt-1">기본 MM2MM 구조에서는 source와 destination이 모두 메모리 주소입니다. 스트림 포트가 아니라 AXI 메모리 공간 두 곳을 연결합니다.</p>
+            </div>
+            <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
+              <span class="text-[11px] font-bold text-green-600">STEP 3</span>
+              <p class="text-[14px] text-[#191f28] font-semibold mt-1">NUM 레지스터에 시작 플래그, 묶음 크기, 총 길이를 함께 기록</p>
+              <p class="text-[13px] text-[#4e5968] mt-1">전송 시작 트리거입니다. Chunk는 한 번에 얼마나 큰 묶음으로 버스트를 발생시킬지, Bytes는 총 전송 길이를 뜻합니다.</p>
+            </div>
+            <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
+              <span class="text-[11px] font-bold text-orange-600">STEP 4</span>
+              <p class="text-[14px] text-[#191f28] font-semibold mt-1">GO가 0으로 내려올 때까지 폴링하거나 IRQ를 기다림</p>
+              <p class="text-[13px] text-[#4e5968] mt-1">드라이버는 상태 레지스터를 반복해서 읽으며 완료를 확인합니다. 인터럽트 사용 시에는 pending 상태와 IRQ 출력도 함께 봅니다.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-[#191f28] text-white p-8 rounded-2xl shadow-sm">
+          <h3 class="text-xl font-bold mb-4">2.2 버스트 전송 설계 포인트</h3>
+          <ul class="space-y-3 text-[13px] text-gray-200 leading-relaxed">
+            <li><strong class="text-white">DMA 적용 목적:</strong> CPU가 큰 메모리 블록을 직접 복사하면 성능이 떨어지고 버스트 효율도 얻기 어렵습니다.</li>
+            <li><strong class="text-white">필수 레지스터:</strong> source, destination, length, chunk, done/interrupt 상태가 기본입니다.</li>
+            <li><strong class="text-white">Chunk의 의미:</strong> chunk는 여러 burst를 어느 크기 단위로 나눠 처리할지 정하는 값이며, AXI data width와 FIFO depth 제약을 함께 받습니다.</li>
+            <li><strong class="text-white">주소 제약:</strong> source와 destination의 정렬 관계가 같아야 하며, misaligned start는 내부 FSM에서 따로 처리합니다.</li>
+            <li><strong class="text-white">검증 관점:</strong> 레지스터 설정 순서, 완료 상태, destination 메모리 비교가 핵심 확인 항목입니다.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+        <h3 class="text-xl font-bold text-[#191f28] mb-4">2.3 개념도: CPU가 DMA를 시작시키는 순서</h3>
+        <p class="text-[14px] text-[#4e5968] mb-4 leading-relaxed">
+          실행 코드 없이, CPU/BFM이 DMA를 시작시키는 순서를 개념 흐름으로 정리한 것입니다.
+          이 그림만 보면 어떤 레지스터가 어떤 시점에 의미를 갖는지 파악할 수 있습니다.
+        </p>
+        <div class="grid md:grid-cols-5 gap-3 text-center">
+          <div class="bg-[#f3e8ff] border border-purple-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-purple-700">01</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">Enable</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">DMA 동작 허용과 인터럽트 정책 설정</p>
+          </div>
+          <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-blue-700">02</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">Source</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">읽기 시작 주소를 DMA에 전달</p>
+          </div>
+          <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-green-700">03</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">Destination</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">쓰기 시작 주소를 DMA에 전달</p>
+          </div>
+          <div class="bg-[#fff7ed] border border-orange-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-orange-700">04</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">Start</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">전송 길이와 chunk를 담아 GO 트리거</p>
+          </div>
+          <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-gray-700">05</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">Observe</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">GO 하강, DONE, IRQ로 완료 확인</p>
+          </div>
+        </div>
+        <div class="mt-4 bg-[#f9fafb] border border-gray-200 rounded-xl p-4 text-[13px] text-[#4e5968] leading-relaxed">
+          <strong class="text-[#191f28]">핵심 규칙:</strong>
+          주소와 길이를 모두 준비한 뒤 마지막에 시작 트리거를 넣습니다. 완료 관찰은 polling 또는 interrupt 중 하나로 할 수 있고, interrupt pending은 별도 clear 단계가 필요합니다.
+        </div>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+        <h3 class="text-xl font-bold text-[#191f28] mb-4">2.4 드라이버 관점의 실행 알고리즘</h3>
+        <p class="text-[14px] text-[#4e5968] mb-5 leading-relaxed">
+          실제 제어 코드는 아래 순서로 압축할 수 있습니다. 중요한 점은 <strong>destination/source 주소를 먼저 준비하고, 마지막에 GO를 쓰는 것</strong>입니다.
+          GO가 내려올 때까지 기다리거나 interrupt pending을 확인하면 전송 완료를 판단할 수 있습니다.
+        </p>
+        <div class="grid md:grid-cols-4 gap-4">
+          <div class="bg-[#f3e8ff] border border-purple-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-purple-700">CONTROL</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">EN / IE 설정</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">DMA enable을 켜고, 필요하면 완료 interrupt도 허용합니다.</p>
+          </div>
+          <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-blue-700">ADDRESS</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">DST와 SRC 기록</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">두 주소의 하위 alignment가 맞는지 확인해야 합니다.</p>
+          </div>
+          <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-green-700">START</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">GO + CHUNK + BYTES</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">전송 크기와 chunk를 한 번에 묶어 시작 조건을 만듭니다.</p>
+          </div>
+          <div class="bg-[#fff7ed] border border-orange-200 rounded-xl p-4">
+            <span class="text-[11px] font-bold text-orange-700">WAIT / CLEAR</span>
+            <p class="text-[13px] font-bold text-[#191f28] mt-1">GO 하강 또는 IP 확인</p>
+            <p class="text-[12px] text-[#4e5968] mt-1">완료 후 pending interrupt는 software가 명시적으로 clear합니다.</p>
+          </div>
+        </div>
+        <div class="mt-5 bg-[#f9fafb] border border-gray-200 rounded-xl p-5">
+          <p class="text-[13px] font-bold text-[#191f28] mb-3">Pseudo-code</p>
+          <div class="grid md:grid-cols-5 gap-2 text-center text-[12px]">
+            <div class="bg-white border border-gray-200 rounded-lg p-3">enable DMA</div>
+            <div class="bg-white border border-gray-200 rounded-lg p-3">write DST</div>
+            <div class="bg-white border border-gray-200 rounded-lg p-3">write SRC</div>
+            <div class="bg-white border border-gray-200 rounded-lg p-3">write GO/length</div>
+            <div class="bg-white border border-gray-200 rounded-lg p-3">poll or IRQ clear</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl border border-[#3182f6] shadow-sm relative overflow-hidden">
+        <div class="absolute -right-10 -top-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl -z-10"></div>
+        <h3 class="text-xl font-bold text-[#191f28] mb-4 flex items-center gap-2">
+          <i data-lucide="zap" class="w-6 h-6 text-[#3182f6]"></i> 2.5 AXI-Lite와 AXI4 Full의 결정적 차이
+        </h3>
+        <div class="grid md:grid-cols-2 gap-6 mt-4">
+          <div class="bg-[#f9fafb] p-6 rounded-xl border border-gray-200">
+            <h4 class="font-bold text-purple-600 mb-2">AXI-Lite (제어용)</h4>
+            <p class="text-[13px] text-gray-600 leading-relaxed">
+              <strong>1 주소 = 1 데이터.</strong> CPU가 DMA의 레지스터(예: Source Address)를 세팅할 때 씁니다. 한 번의 주소 전송에 딱 한 번의 데이터만 보냅니다.
+            </p>
+          </div>
+          <div class="bg-[#eff7ff] p-6 rounded-xl border border-blue-200">
+            <h4 class="font-bold text-[#3182f6] mb-2">AXI4 Full (데이터용)</h4>
+            <p class="text-[13px] text-gray-700 leading-relaxed">
+              <strong>1 주소 = N 데이터 (Burst).</strong> DMA가 메모리에서 데이터를 가져올 때 씁니다. 시작 주소 1번만 알려주면, 최대 256개의 연속된 데이터를 연달아 쏟아냅니다.
+            </p>
+          </div>
+        </div>
+
+        <h3 class="text-xl font-bold text-[#191f28] mt-10 mb-6">2.6 AXI4 5개 독립 채널 애니메이션 시뮬레이션</h3>
+        <p class="text-sm text-[#4e5968] mb-6">AXI4는 write address, write data, write response, read address, read data 채널을 독립적으로 운용합니다. DMA는 이 구조를 이용해 읽기와 쓰기 파이프를 분리합니다.</p>
+        
+        <div class="flex gap-4 mb-6">
+          <button onclick="runAxiReadBurst()" id="btn-axi-read" class="bg-[#3182f6] hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md">
+            <i data-lucide="download" class="w-4 h-4"></i> Read Burst 실행 (AR, R 채널)
+          </button>
+          <button onclick="runAxiWriteBurst()" id="btn-axi-write" class="bg-[#22c55e] hover:bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md">
+            <i data-lucide="upload" class="w-4 h-4"></i> Write Burst 실행 (AW, W, B 채널)
+          </button>
+        </div>
+
+        <!-- AXI Transaction Animation Canvas -->
+        <div class="bg-[#191f28] p-8 rounded-xl relative overflow-hidden h-[360px] flex justify-between items-center text-white border border-gray-800">
+          <div class="w-32 h-48 bg-gray-800 border-2 border-gray-600 rounded-xl flex flex-col items-center justify-center z-20 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+            <span class="font-extrabold text-[#3182f6]">DMA Core</span>
+            <span class="text-xs text-gray-400 mt-1">AXI4 Master</span>
+          </div>
+
+          <div class="flex-1 h-full relative" id="axi-channels-container">
+            <div class="absolute top-[20%] w-full h-px bg-gray-700 border-b border-dashed border-gray-600"></div>
+            <div class="absolute top-[35%] w-full h-px bg-gray-700 border-b border-dashed border-gray-600"></div>
+            <div class="absolute top-[50%] w-full h-px bg-gray-700 border-b border-dashed border-gray-600"></div>
+            <div class="absolute top-[65%] w-full h-px bg-gray-700 border-b border-dashed border-gray-600"></div>
+            <div class="absolute top-[80%] w-full h-px bg-gray-700 border-b border-dashed border-gray-600"></div>
+            
+            <div class="absolute left-4 top-[15%] text-[10px] font-bold text-blue-400">AR (Read Address)</div>
+            <div class="absolute right-4 top-[30%] text-[10px] font-bold text-blue-300">R (Read Data)</div>
+            <div class="absolute left-4 top-[45%] text-[10px] font-bold text-green-400">AW (Write Address)</div>
+            <div class="absolute left-4 top-[60%] text-[10px] font-bold text-green-300">W (Write Data)</div>
+            <div class="absolute right-4 top-[75%] text-[10px] font-bold text-red-400">B (Write Response)</div>
+
+            <div id="packet-layer" class="absolute inset-0 pointer-events-none"></div>
+
+            <div id="axi-status-box" class="absolute top-4 left-1/2 -translate-x-1/2 bg-white/10 border border-white/20 backdrop-blur-sm px-4 py-2 rounded-lg text-sm font-bold text-center opacity-0 transition-opacity">
+              Status
+            </div>
+          </div>
+
+          <div class="w-32 h-48 bg-gray-800 border-2 border-gray-600 rounded-xl flex flex-col items-center justify-center z-20 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+            <span class="font-extrabold text-gray-300">DDR Memory</span>
+            <span class="text-xs text-gray-500 mt-1">AXI4 Slave</span>
+          </div>
+        </div>
+      </div>
+    </section>

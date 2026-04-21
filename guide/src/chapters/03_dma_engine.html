@@ -1,0 +1,169 @@
+    <!-- ==========================================
+         Chapter 3. AXI-Stream Protocol
+    =========================================== -->
+    <section id="axi-section" class="tab-content space-y-10">
+      <div class="space-y-4 border-b border-gray-200 pb-6">
+        <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 3. AMBA AXI-Stream Protocol</span>
+        <h2 class="text-3xl font-extrabold text-[#191f28]">주소가 배제된 순수 데이터 파이프라인</h2>
+        <p class="text-[#4e5968] text-lg">AXI4 memory burst가 주소 기반 전송이라면, AXI-Stream은 VALID/READY와 packet boundary만으로 흐르는 단방향 데이터 경로입니다.</p>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+        <h3 class="text-xl font-bold text-[#191f28] mb-4">3.1 Stream으로 확장하기 전 DMA 내부 구조</h3>
+        <div class="grid md:grid-cols-3 gap-5">
+          <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-5">
+            <h4 class="font-bold text-blue-900">Read Core</h4>
+            <p class="text-[13px] text-blue-800 mt-2 leading-relaxed">SOURCE 주소를 기준으로 AR/R 채널을 발생시켜 데이터를 읽습니다. 정렬이 맞지 않으면 먼저 misaligned access를 처리한 뒤 bulk burst로 넘어갑니다.</p>
+          </div>
+          <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-5">
+            <h4 class="font-bold text-[#191f28]">Synchronous FIFO</h4>
+            <p class="text-[13px] text-[#4e5968] mt-2 leading-relaxed">읽기 측과 쓰기 측 사이의 탄력 버퍼입니다. 읽기 응답 타이밍과 쓰기 승인 타이밍이 어긋나도 바로 막히지 않도록 완충 역할을 합니다.</p>
+          </div>
+          <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-5">
+            <h4 class="font-bold text-green-900">Write Core</h4>
+            <p class="text-[13px] text-green-800 mt-2 leading-relaxed">FIFO에서 꺼낸 데이터를 destination 메모리에 AW/W/B 채널로 씁니다. 읽기 측과 유사하게 misaligned start와 aligned burst를 구분합니다.</p>
+          </div>
+        </div>
+
+        <div class="mt-6 overflow-x-auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>구성요소</th>
+                <th>대표 상태</th>
+                <th>핵심 역할</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Read Engine</strong></td>
+                <td>대기, 비정렬 보정, 정렬 버스트, 읽기 진행</td>
+                <td>남은 바이트 수와 정렬 상태를 보고 적절한 ARLEN/ARSIZE 조합을 만든 뒤 FIFO에 밀어 넣음</td>
+              </tr>
+              <tr>
+                <td><strong>Sync FIFO</strong></td>
+                <td>rooms / items 카운터</td>
+                <td>Read와 Write 사이를 decouple하여 둘 중 한쪽이 잠시 느려져도 전체가 바로 멈추지 않도록 함</td>
+              </tr>
+              <tr>
+                <td><strong>Write Engine</strong></td>
+                <td>대기, 비정렬 보정, 정렬 버스트, 쓰기 진행</td>
+                <td>FIFO에서 받은 data/strobe를 이용해 메모리 write burst를 생성하고 응답(B)을 수집함</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-6 bg-[#f9fafb] border border-gray-200 rounded-2xl p-6">
+          <h4 class="font-bold text-[#191f28] mb-3">개념도: 내부 엔진 협업 흐름</h4>
+          <div class="grid lg:grid-cols-[1fr_80px_1fr_80px_1fr] gap-3 items-stretch">
+            <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-blue-900">Read Engine</p>
+              <p class="text-[12px] text-blue-800 mt-2 leading-relaxed">SOURCE 기준으로 AR/R 채널을 운용합니다. 시작 주소가 정렬되지 않았으면 첫 beat를 따로 처리하고, 이후 aligned burst로 전환합니다.</p>
+            </div>
+            <div class="hidden lg:flex items-center justify-center text-[#8b95a1] font-black">→</div>
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-[#191f28]">Sync FIFO</p>
+              <p class="text-[12px] text-[#4e5968] mt-2 leading-relaxed">read 쪽에서 들어온 data와 byte strobe를 잠시 보관합니다. 양쪽 AXI 응답 속도가 달라도 DMA 전체가 바로 멈추지 않게 완충합니다.</p>
+            </div>
+            <div class="hidden lg:flex items-center justify-center text-[#8b95a1] font-black">→</div>
+            <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-green-900">Write Engine</p>
+              <p class="text-[12px] text-green-800 mt-2 leading-relaxed">DEST 기준으로 AW/W/B 채널을 운용합니다. FIFO에서 받은 strobe를 이용해 partial write와 마지막 beat를 안전하게 마무리합니다.</p>
+            </div>
+          </div>
+          <div class="mt-4 grid md:grid-cols-3 gap-3">
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-[#191f28]">Start 조건</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">CSR에서 GO를 수락하면 read/write 엔진이 각각 source와 destination 주소를 기준으로 준비됩니다.</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-[#191f28]">Backpressure 조건</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">FIFO가 가득 차면 read가 늦추고, FIFO가 비면 write가 기다립니다. 이 흐름이 양쪽 채널을 decouple합니다.</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-[#191f28]">Done 조건</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">읽기 엔진과 쓰기 엔진이 모두 마지막 응답까지 확인했을 때 DMA 완료로 봅니다.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 bg-[#eef8ff] border border-blue-200 rounded-2xl p-6">
+          <h4 class="font-bold text-[#191f28] mb-3">핵심 구현식으로 보는 DMA 엔진</h4>
+          <p class="text-[13px] text-[#4e5968] mb-4 leading-relaxed">
+            RTL을 그대로 보여주기보다, 구조를 이해하는 데 필요한 식만 추려 보면 DMA core는 아래처럼 읽을 수 있습니다.
+          </p>
+          <div class="grid md:grid-cols-3 gap-3">
+            <div class="bg-white border border-blue-100 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-blue-900">Busy 조건</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">read engine 또는 write engine 중 하나라도 동작 중이면 DMA는 busy입니다.</p>
+            </div>
+            <div class="bg-white border border-blue-100 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-blue-900">Done 조건</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">read 완료와 write 완료가 모두 확인되어야 전체 전송 완료입니다.</p>
+            </div>
+            <div class="bg-white border border-blue-100 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-blue-900">FIFO 조건</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">read는 FIFO room이 있을 때 밀어 넣고, write는 FIFO item이 있을 때 꺼냅니다.</p>
+            </div>
+          </div>
+          <div class="mt-4 grid md:grid-cols-2 gap-3 text-[12px] text-[#4e5968]">
+            <div class="bg-white border border-blue-100 rounded-xl p-4"><strong class="text-[#191f28]">read side:</strong> AR handshake 후 R beat를 FIFO로 수집합니다.</div>
+            <div class="bg-white border border-blue-100 rounded-xl p-4"><strong class="text-[#191f28]">write side:</strong> FIFO에서 data/strobe를 받아 AW/W/B 순서로 destination에 기록합니다.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm mb-8">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <h3 class="text-xl font-bold text-[#191f28]">3.2 AXI-Stream 동작 시각화</h3>
+            <p class="text-[14px] text-[#4e5968] mt-1">주소가 없는 대신 packet boundary 표시가 전송 단위를 구분합니다. 이 표시가 맞지 않으면 수신 DMA의 완료 조건도 어긋납니다.</p>
+          </div>
+          <button onclick="runStreamAnimation()" id="btn-stream" class="bg-[#8b5cf6] hover:bg-purple-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md">
+            <i data-lucide="play" class="w-4 h-4"></i> Stream 데이터 송신
+          </button>
+        </div>
+
+        <div class="bg-[#f8f9fa] border border-[#e5e8eb] p-6 rounded-xl relative overflow-hidden h-[180px] flex items-center justify-between">
+          <div class="w-28 h-28 bg-white border-[3px] border-[#3182f6] rounded-xl flex flex-col items-center justify-center z-10 shadow-sm">
+            <span class="font-extrabold text-[#3182f6]">DMA</span>
+            <span class="text-[10px] text-gray-500">(Master)</span>
+          </div>
+          
+          <div class="flex-1 h-full relative flex items-center justify-center overflow-hidden" id="stream-channel">
+            <div class="w-full h-2 bg-[#dbeafe] rounded-full relative"></div>
+          </div>
+
+          <div class="w-28 h-28 bg-white border-[3px] border-[#8b5cf6] rounded-xl flex flex-col items-center justify-center z-10 shadow-sm">
+            <span class="font-extrabold text-[#8b5cf6]">Target IP</span>
+            <span class="text-[10px] text-gray-500">(Slave)</span>
+          </div>
+        </div>
+
+        <h3 class="text-lg font-bold mt-10 mb-3 text-[#191f28]">3.3 AXI-Stream 핵심 신호선</h3>
+        <div class="overflow-x-auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="w-32">Signal</th>
+                <th class="w-20">Source</th>
+                <th>Engineering Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-bold text-[#3182f6]">Payload Data</td>
+                <td>Master</td>
+                <td>실제 페이로드(Payload) 데이터.</td>
+              </tr>
+              <tr>
+                <td class="font-bold text-red-500">Packet End Marker</td>
+                <td>Master</td>
+                <td><strong>패킷의 끝</strong>을 지시합니다. 송신측은 패킷(예: 이미지 1줄)의 마지막 데이터와 함께 끝 표시를 보내고, DMA는 이를 감지해 한 번의 처리를 종료하고 인터럽트를 겁니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>

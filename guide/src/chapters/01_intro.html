@@ -1,0 +1,159 @@
+    
+    <!-- ==========================================
+         Chapter 1. System Big Picture
+    =========================================== -->
+    <section id="intro-section" class="tab-content active space-y-10">
+      <div class="space-y-4 border-b border-gray-200 pb-6">
+        <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 1. System-Level Overview</span>
+        <h2 class="text-3xl font-extrabold text-[#191f28]">AXI DMA의 정확한 역할 정의</h2>
+        <p class="text-[#4e5968] text-lg">주소가 있는 Memory 세계와 주소 없이 흐르는 Stream 세계를 연결하는 데이터 이동 아키텍처를 한 장씩 분해합니다.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl p-8 border border-gray-200 shadow-sm">
+        
+        <!-- DMA의 정확한 정의 해설 -->
+        <h3 class="text-xl font-bold text-[#191f28] mb-4">1.1 DMA는 무엇을, 어떻게 연결하는가?</h3>
+        <p class="text-[15px] text-[#4e5968] mb-6 leading-relaxed">
+          AXI DMA는 단순한 복사 회로가 아니라 <strong>CPU가 설정한 전송 조건을 받아</strong>, <strong>AXI4 메모리 버스트</strong>와
+          <strong>AXI-Stream 데이터 흐름</strong> 사이를 이어 주는 Bridge입니다.
+          이 가이드는 <strong>CPU 제어, AXI4 burst, AXI-Stream, Scatter-Gather</strong> 순서로 DMA가 어떻게 확장되는지 한 화면씩 정리합니다.
+        </p>
+
+        <div class="grid md:grid-cols-3 gap-6 mb-10">
+          <div class="bg-[#f3e8ff] p-5 rounded-xl border border-purple-200 shadow-sm">
+            <div class="flex items-center gap-2 mb-2">
+              <i data-lucide="settings" class="w-5 h-5 text-purple-700"></i>
+              <h4 class="font-bold text-purple-900 text-[14px]">1. AXI-Lite (명령 수신용)</h4>
+            </div>
+            <p class="text-[13px] text-purple-800 leading-relaxed">
+              CPU가 DMA 제어 레지스터에 접근하는 경로입니다. 실제 payload가 아니라 source, destination, length, interrupt 같은 설정 값을 전달합니다.
+            </p>
+          </div>
+          
+          <div class="bg-[#eff7ff] p-5 rounded-xl border border-blue-200 shadow-sm">
+            <div class="flex items-center gap-2 mb-2">
+              <i data-lucide="server" class="w-5 h-5 text-[#3182f6]"></i>
+              <h4 class="font-bold text-blue-900 text-[14px]">2. AXI4 Full (메모리 접근용)</h4>
+            </div>
+            <p class="text-[13px] text-blue-800 leading-relaxed">
+              실제 데이터 이동 경로입니다. DMA가 AXI master가 되어 DDR 같은 system memory에 burst read/write를 수행합니다.
+            </p>
+          </div>
+
+          <div class="bg-[#ecfdf5] p-5 rounded-xl border border-green-200 shadow-sm">
+            <div class="flex items-center gap-2 mb-2">
+              <i data-lucide="cpu" class="w-5 h-5 text-green-600"></i>
+              <h4 class="font-bold text-green-900 text-[14px]">3. AXI-Stream (확장 경로)</h4>
+            </div>
+            <p class="text-[13px] text-green-800 leading-relaxed">
+              <strong>가속기 IP와 직접 연결되는 데이터 파이프라인.</strong> TEA 암호화 코어, 필터, FFT처럼 주소보다 데이터 순서와 packet boundary가 중요한 블록에 붙습니다.
+            </p>
+          </div>
+        </div>
+
+        <!-- System Big Picture Diagram -->
+        <h3 class="text-xl font-bold text-[#191f28] mb-6">1.2 SoC 아키텍처 블록 다이어그램</h3>
+        <div class="bg-[#f8f9fa] border border-[#e5e8eb] p-6 rounded-xl flex flex-col items-center">
+          <div class="w-full max-w-4xl relative">
+            <div class="flex justify-between items-start mb-10">
+              <div class="w-40 flex flex-col items-center">
+                <div class="w-full bg-white border-[3px] border-[#191f28] rounded-xl p-4 shadow-md text-center z-10 relative">
+                  <i data-lucide="cpu" class="w-8 h-8 text-[#191f28] mx-auto mb-2"></i>
+                  <span class="font-extrabold text-[#191f28] block">Processor</span>
+                  <span class="absolute -right-4 -bottom-4 bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded shadow-sm border border-purple-200">AXI Master</span>
+                </div>
+                <div class="h-10 border-l-4 border-dashed border-[#8b5cf6] flex items-center justify-center -mb-2">
+                  <span class="bg-[#f3e8ff] text-[#7c3aed] text-[10px] font-bold px-2 py-0.5 rounded border border-[#d8b4fe] ml-16 whitespace-nowrap">Config (AXI-Lite)</span>
+                </div>
+                <i data-lucide="arrow-down" class="text-[#8b5cf6] z-10"></i>
+              </div>
+
+              <div class="w-48 flex flex-col items-center">
+                <div class="w-full bg-white border-[3px] border-gray-400 rounded-xl p-4 shadow-md text-center z-10 relative">
+                  <i data-lucide="server" class="w-8 h-8 text-gray-600 mx-auto mb-2"></i>
+                  <span class="font-extrabold text-gray-700 block">System Memory</span>
+                  <span class="absolute -left-4 -bottom-4 bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-1 rounded shadow-sm border border-gray-300">AXI Slave</span>
+                </div>
+                <div class="flex w-full justify-between mt-2">
+                  <div class="flex flex-col items-center">
+                     <i data-lucide="arrow-up" class="text-[#3182f6] -mt-1 z-10"></i>
+                     <div class="h-12 border-l-4 border-[#3182f6]"></div>
+                  </div>
+                  <div class="flex flex-col items-center">
+                     <i data-lucide="arrow-down" class="text-[#22c55e] -mt-1 z-10"></i>
+                     <div class="h-12 border-l-4 border-[#22c55e]"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="w-full h-12 bg-gray-200 border-y-2 border-gray-300 flex items-center justify-center shadow-inner relative rounded z-10">
+              <span class="font-extrabold text-gray-500 tracking-widest uppercase">AXI Interconnect (System Bus)</span>
+            </div>
+
+            <div class="flex justify-between items-start mt-8">
+              <div class="w-[340px] bg-[#eff7ff] border-[3px] border-[#3182f6] rounded-xl p-4 shadow-md z-10 relative">
+                <div class="absolute -top-3 left-6 bg-[#3182f6] text-white text-[10px] font-bold px-2 py-0.5 rounded">AXI DMA Controller</div>
+                
+                <div class="grid grid-cols-2 gap-4 mt-2">
+                  <div class="bg-white border-2 border-purple-400 rounded p-2 text-center shadow-sm relative">
+                    <span class="absolute -top-2 -right-2 bg-purple-500 text-white text-[8px] font-bold px-1 rounded">Slave</span>
+                    <span class="block font-bold text-[#191f28] text-sm">CSR (Registers)</span>
+                    <span class="block text-[10px] text-purple-600">AXI-Lite 설정 수신</span>
+                  </div>
+                  <div class="bg-white border border-gray-200 rounded p-2 text-center shadow-sm">
+                    <span class="block font-bold text-red-500 text-sm">Interrupts</span>
+                    <span class="block text-[10px] text-gray-500">완료 시 CPU 알림</span>
+                  </div>
+                  <div class="bg-white border-2 border-[#3182f6] rounded p-2 text-center shadow-sm flex flex-col justify-center relative">
+                    <span class="absolute -top-2 -right-2 bg-[#3182f6] text-white text-[8px] font-bold px-1 rounded">Master</span>
+                    <span class="block font-extrabold text-[#3182f6] text-sm">MM2S Engine</span>
+                    <span class="block text-[10px] text-gray-500">AXI4 Full (DDR Read)</span>
+                  </div>
+                  <div class="bg-white border-2 border-[#22c55e] rounded p-2 text-center shadow-sm flex flex-col justify-center relative">
+                    <span class="absolute -top-2 -right-2 bg-[#22c55e] text-white text-[8px] font-bold px-1 rounded">Master</span>
+                    <span class="block font-extrabold text-[#22c55e] text-sm">S2MM Engine</span>
+                    <span class="block text-[10px] text-gray-500">AXI4 Full (DDR Write)</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex-1 flex flex-col items-center justify-center relative px-4 mt-12">
+                <div class="w-full h-1.5 bg-[#3182f6] relative flex items-center justify-end mb-4">
+                  <div class="absolute -top-5 text-[10px] font-bold text-[#3182f6]">M_AXIS_MM2S</div>
+                  <i data-lucide="chevron-right" class="text-[#3182f6] -mr-2"></i>
+                </div>
+                <div class="w-full h-1.5 bg-[#22c55e] relative flex items-center justify-start">
+                  <div class="absolute -bottom-5 text-[10px] font-bold text-[#22c55e]">S_AXIS_S2MM</div>
+                  <i data-lucide="chevron-left" class="text-[#22c55e] -ml-2"></i>
+                </div>
+              </div>
+
+              <div class="w-40 flex flex-col items-center mt-6">
+                <div class="w-full bg-[#f4f0ff] border-[3px] border-[#8b5cf6] rounded-xl p-4 shadow-md text-center z-10">
+                  <i data-lucide="layers" class="w-8 h-8 text-[#8b5cf6] mx-auto mb-2"></i>
+                  <span class="font-extrabold text-[#8b5cf6] block leading-tight">Target HW<br>(e.g. FFT/Filter)</span>
+                  <span class="text-[10px] text-gray-500">(AXI-Stream)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interconnect vertical lines -->
+            <div class="absolute left-[64px] top-[108px] w-1 bg-[#8b5cf6] z-0 opacity-80 rounded-full" style="height: 150px;"></div>
+            <div class="absolute right-[225px] top-[108px] w-1 bg-[#3182f6] z-0 opacity-80 rounded-full" style="height: 150px;"></div>
+            <div class="absolute right-[175px] top-[108px] w-1 bg-[#22c55e] z-0 opacity-80 rounded-full" style="height: 150px;"></div>
+            <div class="absolute left-[140px] top-[165px] w-1 bg-[#3182f6] z-0 opacity-80 rounded-full" style="height: 170px;"></div>
+            <div class="absolute left-[295px] top-[165px] w-1 bg-[#22c55e] z-0 opacity-80 rounded-full" style="height: 170px;"></div>
+          </div>
+        </div>
+        
+        <!-- Scope note for the base DMA architecture -->
+        <div class="mt-6 bg-[#eef8ff] p-5 rounded-xl border border-blue-200">
+          <h4 class="font-bold text-[#3182f6] text-sm mb-2 flex items-center gap-1"><i data-lucide="info" class="w-4 h-4"></i> 핵심 요약</h4>
+          <p class="text-[13px] text-gray-700">
+            <strong>AXI DMA를 이해할 때는 제어면과 데이터면을 분리해서 보는 것이 가장 중요합니다.</strong>
+            CPU는 AXI-Lite로 적은 양의 설정만 넣고, DMA는 AXI4/AXI-Stream 경로에서 큰 데이터를 독립적으로 이동시킵니다.
+          </p>
+        </div>
+      </div>
+    </section>

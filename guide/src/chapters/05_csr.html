@@ -1,0 +1,176 @@
+    <!-- ==========================================
+         Chapter 5. CSR Memory Map (Interactive)
+    =========================================== -->
+    <section id="csr-section" class="tab-content space-y-10">
+      <div class="space-y-4 border-b border-gray-200 pb-6">
+        <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 5. Memory Mapped I/O</span>
+        <h2 class="text-3xl font-extrabold text-[#191f28]">인터랙티브 CSR 레지스터 맵</h2>
+        <p class="text-[#4e5968] text-lg">CPU가 DMA를 제어하기 위해 접근하는 memory-mapped register를 역할과 비트 단위로 정리합니다.</p>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+        <h3 class="text-lg font-bold text-[#191f28] mb-4 border-l-4 border-[#3182f6] pl-3">5.1 레지스터 요약</h3>
+        <div class="overflow-x-auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>이름</th>
+                <th>Offset</th>
+                <th>Access</th>
+                <th>의미</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="font-bold">Control</td>
+                <td>제어 영역</td>
+                <td>RW</td>
+                <td>DMA enable, interrupt enable, interrupt pending 상태 제어</td>
+              </tr>
+              <tr>
+                <td class="font-bold">Transfer Info</td>
+                <td>전송 정보 영역</td>
+                <td>RW/RO mix</td>
+                <td>GO 시작 비트, BUSY/DONE 상태, CHUNK 크기, 총 BYTES 길이</td>
+              </tr>
+              <tr>
+                <td class="font-bold">Source</td>
+                <td>읽기 주소 영역</td>
+                <td>RW</td>
+                <td>읽기 시작 주소</td>
+              </tr>
+              <tr>
+                <td class="font-bold">Destination</td>
+                <td>쓰기 주소 영역</td>
+                <td>RW</td>
+                <td>쓰기 시작 주소</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-8 mt-10">
+          <div>
+            <h3 class="text-lg font-bold text-[#191f28] mb-4 border-l-4 border-[#3182f6] pl-3">5.2 Control Register</h3>
+            <p class="text-sm text-gray-600 mb-4">CONTROL은 DMA를 켜고 인터럽트 정책을 정합니다. pending interrupt는 여기서 clear합니다.</p>
+            <div class="flex border-2 border-gray-300 rounded-lg overflow-hidden h-16 mb-4 text-center text-[11px] font-bold">
+              <div class="flex-1 bg-blue-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Enable: DMA 전체 동작을 허용하는 최상위 스위치입니다. 꺼져 있으면 읽기와 쓰기 엔진이 동작하지 않습니다.')">
+                <span class="text-gray-500 font-normal">31</span>
+                <span class="text-blue-700">EN</span>
+              </div>
+              <div class="flex-1 bg-gray-100 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Reserved: 현재 설명 범위에서는 사용하지 않는 예약 영역입니다.')">
+                <span class="text-gray-400 font-normal">30 .. 2</span>
+                <span class="text-gray-400">RSVD</span>
+              </div>
+              <div class="w-20 bg-orange-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Interrupt Pending: 완료 알림이 아직 처리되지 않았음을 나타냅니다. 소프트웨어가 확인 후 clear합니다.')">
+                <span class="text-gray-500 font-normal">1</span>
+                <span class="text-orange-600">IP</span>
+              </div>
+              <div class="w-20 bg-green-50 flex flex-col justify-center bit-group" onmouseover="showDesc('control-desc', 'Interrupt Enable: 전송 완료 시 CPU에게 알림을 보낼지 결정합니다.')">
+                <span class="text-gray-500 font-normal">0</span>
+                <span class="text-green-700">IE</span>
+              </div>
+            </div>
+            <div id="control-desc" class="desc-box bg-[#191f28] text-white text-sm p-4 rounded-xl shadow-inner min-h-[72px] flex items-center justify-center font-bold">
+              비트에 마우스를 올리면 의미가 표시됩니다.
+            </div>
+          </div>
+
+          <div>
+            <h3 class="text-lg font-bold text-[#191f28] mb-4 border-l-4 border-red-500 pl-3">5.3 Transfer Info Register</h3>
+            <p class="text-sm text-gray-600 mb-4">NUM은 시작 트리거이자 상태 요약 레지스터입니다. 소프트웨어는 보통 이 값을 써서 시작하고 다시 읽어 완료를 확인합니다.</p>
+            <div class="flex border-2 border-gray-300 rounded-lg overflow-hidden h-16 mb-4 text-center text-[11px] font-bold">
+              <div class="w-20 bg-purple-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Start: 전송을 시작하는 트리거입니다. 완료되면 자동으로 비활성 상태로 돌아갑니다.')">
+                <span class="text-gray-500 font-normal">31</span>
+                <span class="text-purple-700">GO</span>
+              </div>
+              <div class="w-20 bg-yellow-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Busy: 읽기 엔진 또는 쓰기 엔진 중 하나라도 처리 중이면 활성화됩니다.')">
+                <span class="text-gray-500 font-normal">30</span>
+                <span class="text-yellow-700">BUSY</span>
+              </div>
+              <div class="w-20 bg-green-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Done: 읽기와 쓰기 흐름이 모두 마지막 응답까지 마쳤을 때 완료로 표시됩니다.')">
+                <span class="text-gray-500 font-normal">29</span>
+                <span class="text-green-700">DONE</span>
+              </div>
+              <div class="w-20 bg-gray-100 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', '28:24 Reserved.')">
+                <span class="text-gray-400 font-normal">28 .. 24</span>
+                <span class="text-gray-400">RSVD</span>
+              </div>
+              <div class="w-24 bg-blue-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', '23:16 CHUNK: 한 번에 처리할 묶음 크기. data width의 배수여야 하며, 0이면 기본 data width 단위로 처리한다고 보면 된다.')">
+                <span class="text-gray-500 font-normal">23 .. 16</span>
+                <span class="text-blue-700">CHUNK</span>
+              </div>
+              <div class="flex-1 bg-orange-50 flex flex-col justify-center bit-group" onmouseover="showDesc('num-desc', '15:0 BYTES: 총 이동 바이트 수. 16-bit 길이 필드이므로 최대 2^16-1 byte 범위를 표현할 수 있다.')">
+                <span class="text-gray-500 font-normal">15 .. 0</span>
+                <span class="text-orange-600">BYTES</span>
+              </div>
+            </div>
+            <div id="num-desc" class="desc-box bg-[#191f28] text-white text-sm p-4 rounded-xl shadow-inner min-h-[72px] flex items-center justify-center font-bold">
+              비트에 마우스를 올리면 의미가 표시됩니다.
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-10 grid lg:grid-cols-[1.1fr_0.9fr] gap-8">
+          <div>
+            <h3 class="text-lg font-bold text-[#191f28] mb-4 border-l-4 border-green-500 pl-3">5.4 SOURCE / DEST 주소 레지스터</h3>
+            <p class="text-sm text-gray-600 mb-4">주소 레지스터 자체는 단순하지만, 내부 core는 이 주소들의 하위 정렬 비트를 매우 민감하게 사용합니다.</p>
+            <div class="overflow-x-auto">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>레지스터</th>
+                    <th>주소</th>
+                    <th>설명</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="font-bold">Source</td>
+                    <td>읽기 주소 영역</td>
+                    <td>Read Engine의 시작 주소 기준이 됩니다.</td>
+                  </tr>
+                  <tr>
+                    <td class="font-bold">Destination</td>
+                    <td>쓰기 주소 영역</td>
+                    <td>Write Engine의 시작 주소 기준이 됩니다.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="bg-[#f9fafb] rounded-2xl border border-gray-200 p-6">
+            <h3 class="text-lg font-bold text-[#191f28] mb-4">5.5 공개용 제어 알고리즘</h3>
+            <div class="space-y-3">
+              <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <p class="text-[12px] font-bold text-[#191f28]">A. 준비 단계</p>
+                <p class="text-[12px] text-[#4e5968] mt-1">CONTROL에서 DMA enable과 interrupt 정책을 먼저 결정합니다.</p>
+              </div>
+              <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <p class="text-[12px] font-bold text-[#191f28]">B. 주소 단계</p>
+                <p class="text-[12px] text-[#4e5968] mt-1">SOURCE와 DEST에 메모리 시작 주소를 넣습니다. 두 주소의 alignment 관계가 전송 품질을 좌우합니다.</p>
+              </div>
+              <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <p class="text-[12px] font-bold text-[#191f28]">C. 시작 단계</p>
+                <p class="text-[12px] text-[#4e5968] mt-1">NUM에 total bytes와 chunk 정보를 담고 GO 의미의 start trigger를 줍니다.</p>
+              </div>
+              <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <p class="text-[12px] font-bold text-[#191f28]">D. 관찰 단계</p>
+                <p class="text-[12px] text-[#4e5968] mt-1">BUSY/DONE/GO 상태 또는 interrupt pending을 확인해 완료를 판단합니다.</p>
+              </div>
+            </div>
+            <p class="text-[13px] text-[#4e5968] mt-3 leading-relaxed">
+              이 흐름은 CPU 드라이버든 BFM 검증이든 공통으로 나타나는 MMIO 패턴입니다. 즉, <strong>CSR 맵은 단순하지만 상태 전이와 정렬 제약은 내부 제어기가 책임진다</strong>고 이해하면 됩니다.
+            </p>
+            <div class="mt-5 bg-white border border-gray-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-[#191f28]">실무 체크</p>
+              <p class="text-[12px] text-[#4e5968] mt-1 leading-relaxed">
+                CHUNK는 data bus width의 배수로 잡는 것이 안전합니다. 0으로 두면 data width 단위의 기본 묶음처럼 해석할 수 있고, 너무 큰 CHUNK는 FIFO depth와 backpressure 조건을 같이 봐야 합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>

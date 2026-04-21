@@ -1,0 +1,240 @@
+    <!-- ==========================================
+       Chapter 4. Scatter-Gather & Linked List
+  =========================================== -->
+  <section id="sg-section" class="tab-content space-y-10">
+    <div class="space-y-4 border-b border-gray-200 pb-6">
+      <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 4. Advanced Execution Architecture</span>
+      <h2 class="text-3xl font-extrabold text-[#191f28]">CPU의 역할과 Linked List의 진정한 의미</h2>
+      <p class="text-[#4e5968] text-lg">CPU가 descriptor를 만들고, DMA가 그 목록을 따라가며 흩어진 물리 메모리를 하나의 전송처럼 처리하는 구조입니다.</p>
+    </div>
+
+    <div class="bg-[#fff7ed] p-8 rounded-2xl border border-orange-200 shadow-sm relative overflow-hidden">
+      <div class="absolute -right-10 -top-10 w-40 h-40 bg-orange-50 rounded-full blur-3xl -z-10"></div>
+      <h3 class="text-xl font-bold text-orange-600 mb-4 flex items-center gap-2">
+        <i data-lucide="help-circle" class="w-6 h-6 text-orange-500"></i>
+        4.1 가장 헷갈리는 질문: BD는 어떻게 미리 메모리에 들어가 있는가?
+      </h3>
+      <p class="text-[15px] text-gray-700 leading-relaxed mb-6">
+        Buffer Descriptor(BD)는 DMA가 알아서 만드는 것이 아닙니다. 전송을 시작하기 직전에 <strong>CPU의 디바이스 드라이버가 메모리 공간을 확보하고</strong>,
+        각 descriptor 안에 <strong>다음 descriptor 위치, 실제 데이터 주소, 전송 길이, 상태 필드</strong>를 직접 써 둡니다.
+        그 다음 CPU가 DMA의 제어 레지스터에 첫 descriptor와 tail 정보를 알려주면, DMA가 그때부터 descriptor chain을 따라갑니다.
+      </p>
+
+      <div class="grid lg:grid-cols-[0.95fr_1.05fr] gap-5">
+        <div class="bg-white/70 border border-orange-200 rounded-xl p-5">
+          <h4 class="font-bold text-[#191f28] text-sm mb-3">핵심 흐름</h4>
+          <div class="space-y-3">
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-orange-700">1. Descriptor memory 확보</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">CPU가 DMA와 공유 가능한 RAM 영역에 BD 배열 또는 ring을 준비합니다.</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-orange-700">2. Descriptor field 작성</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">각 BD에 next, buffer address, length, control/status를 채웁니다.</p>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-orange-700">3. DMA register trigger</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">CURDESC와 TAILDESC를 설정하면 DMA가 descriptor fetch를 시작합니다.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-[#1e293b] rounded-xl p-5 shadow-inner overflow-hidden">
+          <div class="flex items-center gap-2 mb-3 border-b border-slate-600 pb-2">
+            <span class="w-3 h-3 rounded-full bg-red-400"></span>
+            <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
+            <span class="w-3 h-3 rounded-full bg-green-400"></span>
+            <span class="text-xs text-slate-300 ml-2">CPU Driver Pseudo Flow</span>
+          </div>
+          <div class="space-y-3 text-[12px] leading-relaxed">
+            <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-3">
+              <p class="text-slate-400">1. 메모리 공간 확보</p>
+              <p class="text-green-300 mt-1">bd0, bd1 = allocate_shared_descriptor_ring()</p>
+            </div>
+            <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-3">
+              <p class="text-slate-400">2. CPU가 RAM에 descriptor 작성</p>
+              <p class="text-green-300 mt-1">bd0.next = bd1, bd0.buffer = block_A, bd0.length = 4KB</p>
+              <p class="text-green-300">bd1.next = tail, bd1.buffer = block_B, bd1.length = 2KB</p>
+            </div>
+            <div class="bg-slate-900/70 border border-slate-700 rounded-lg p-3">
+              <p class="text-slate-400">3. AXI-Lite로 DMA 시작점 통보</p>
+              <p class="text-blue-300 mt-1">DMA.CURDESC = bd0</p>
+              <p class="text-red-300">DMA.TAILDESC = tail</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white p-8 rounded-2xl border border-[#3182f6] shadow-sm relative overflow-hidden">
+      <div class="absolute -right-10 -top-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl -z-10"></div>
+      <h3 class="text-xl font-bold text-[#191f28] mb-4 flex items-center gap-2">
+        <i data-lucide="help-circle" class="w-6 h-6 text-[#3182f6]"></i>
+        4.2 CPU와 DMA의 분업 3단계
+      </h3>
+      <p class="text-[15px] text-[#4e5968] mb-6 leading-relaxed">
+        운영체제 환경에서는 하나의 논리 버퍼가 여러 물리 페이지로 흩어질 수 있습니다. SG DMA는 이 조각들을 descriptor chain으로 표현하고,
+        DMA가 각 descriptor를 읽어 실제 데이터 블록을 순서대로 전송합니다.
+      </p>
+
+      <div class="grid md:grid-cols-3 gap-4 relative z-10 mt-6">
+        <div class="bg-[#f9fafb] p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col">
+            <span class="bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Step 1. Software (CPU)</span>
+            <h4 class="font-bold text-[#191f28] mt-3 mb-2 text-[14px]">작업 지시서 작성</h4>
+            <p class="text-[12.5px] text-gray-600 leading-relaxed">
+                CPU는 메모리의 빈 영역에 BD들을 만들고, 각 BD에 다음 BD 위치와 실제 데이터 블록 정보를 기록합니다. 이때 linked-list 또는 ring 구조가 됩니다.
+            </p>
+        </div>
+        <div class="bg-[#f3e8ff] p-5 rounded-xl border border-purple-200 shadow-sm flex flex-col">
+            <span class="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Step 2. AXI-Lite</span>
+            <h4 class="font-bold text-purple-900 mt-3 mb-2 text-[14px]">DMA에게 시작점 통보</h4>
+            <p class="text-[12.5px] text-purple-800 leading-relaxed">
+                CPU는 AXI-Lite로 DMA 제어 레지스터에 현재 descriptor와 tail descriptor를 씁니다. 이 짧은 register write가 하드웨어 실행의 trigger가 됩니다.
+            </p>
+        </div>
+        <div class="bg-[#eff7ff] p-5 rounded-xl border border-blue-200 shadow-sm flex flex-col">
+            <span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Step 3. AXI4 Full</span>
+            <h4 class="font-bold text-blue-900 mt-3 mb-2 text-[14px]">DMA의 독자적 수행</h4>
+            <p class="text-[12.5px] text-blue-800 leading-relaxed">
+                DMA는 AXI4 Full master로 descriptor를 fetch하고, descriptor가 가리키는 데이터 블록을 전송한 뒤, 완료 상태를 기록하고 다음 BD로 이동합니다.
+            </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4.3 SG Animation -->
+    <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div class="flex justify-between items-start mb-6">
+        <div>
+          <h3 class="text-xl font-bold text-[#191f28]">4.3 Scatter-Gather 메모리 매핑 시뮬레이션</h3>
+          <p class="text-[13px] text-[#4e5968] mt-2 max-w-2xl">
+            왼쪽의 <strong>지시서(BD) 링</strong>과 오른쪽의 <strong>실제 물리 데이터 블록(Data Chunk)</strong>의 관계에 주목하세요.<br>
+            DMA가 descriptor를 읽고 &rarr; 해당 descriptor가 가리키는 데이터 블록을 전송하고 &rarr; 완료 상태를 기록하는 과정입니다.
+          </p>
+        </div>
+        <button id="runSgBtn" onclick="runSGAnimation()" class="bg-[#3182f6] hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap shadow-md mt-2">
+            <i data-lucide="play" class="w-4 h-4"></i> SG 리스트 실행
+        </button>
+      </div>
+
+      <div class="flex flex-col lg:flex-row gap-6">
+        <!-- LEFT: BD Linked List in Memory -->
+        <div class="flex-1 bg-[#f8f9fa] border border-[#e5e8eb] p-6 rounded-xl relative">
+          <h4 class="text-xs font-bold text-gray-500 mb-6 tracking-wide text-center bg-gray-200 py-1 rounded">Memory: Buffer Descriptor Ring</h4>
+          
+          <!-- DMA Engine Pointer -->
+          <div id="dmaEnginePointer" class="absolute left-[-20px] top-[40px] flex items-center gap-3 transition-all duration-700 ease-in-out opacity-0 z-20">
+             <div class="w-8 h-8 bg-white border-[3px] border-[#3182f6] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(49,130,246,0.5)] relative">
+               <i data-lucide="cpu" class="w-4 h-4 text-[#3182f6]" id="dmaIcon"></i>
+               <span class="absolute -top-6 bg-white px-1.5 rounded text-[9px] font-bold text-[#3182f6] shadow border border-blue-200 whitespace-nowrap">DMA Core</span>
+             </div>
+          </div>
+
+          <div class="flex flex-col gap-6 relative ml-12">
+            <!-- BD 0 -->
+            <div id="bd-0" class="bd-card bg-white shadow-sm rounded-lg overflow-hidden">
+              <div class="bg-blue-50 text-blue-800 text-xs font-bold px-3 py-2 flex justify-between items-center border-b border-blue-100">
+                <span>BD 0 (@0x1000)</span>
+                <span id="bd-0-tag" class="text-[9px] bg-[#3182f6] text-white px-1.5 py-0.5 rounded hidden">CURDESC (CPU 지정)</span>
+              </div>
+              <div class="p-2 px-3 text-[11px] grid grid-cols-[90px_1fr] gap-1 border-b border-gray-100">
+                <span class="text-gray-500">다음 지시서</span>
+                <span class="font-bold text-[#191f28]">BD 1 <span class="text-[10px] text-gray-400 ml-2">(다음 작업 카드)</span></span>
+              </div>
+              <div class="p-2 px-3 text-[11px] grid grid-cols-[90px_1fr] gap-1 border-b border-gray-100">
+                <span class="text-gray-500">데이터 블록</span>
+                <span class="font-bold text-[#191f28]">첫 번째 물리 블록 <span class="text-gray-400 ml-1">(4KB)</span></span>
+              </div>
+              <!-- Progress Bar Container -->
+              <div class="h-1.5 w-full bg-gray-100 relative overflow-hidden">
+                <div id="bd-0-progress" class="absolute left-0 top-0 h-full bg-[#3182f6] w-0"></div>
+              </div>
+              <div class="p-2 px-3 text-[11px] bg-gray-50 flex gap-2 items-center">
+                <span class="text-gray-500">상태</span><span id="bd-0-status" class="italic text-gray-500">Waiting</span>
+              </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="w-px h-6 bg-gray-300 border-l-2 border-dashed border-gray-300 absolute left-8 top-[125px] z-0"></div>
+
+            <!-- BD 1 -->
+            <div id="bd-1" class="bd-card bg-white shadow-sm rounded-lg overflow-hidden">
+              <div class="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 border-b border-gray-200">
+                BD 1 (@0x1040)
+              </div>
+              <div class="p-2 px-3 text-[11px] grid grid-cols-[90px_1fr] gap-1 border-b border-gray-100">
+                <span class="text-gray-500">다음 지시서</span>
+                <span class="font-bold text-[#191f28]">Tail marker</span>
+              </div>
+              <div class="p-2 px-3 text-[11px] grid grid-cols-[90px_1fr] gap-1 border-b border-gray-100">
+                <span class="text-gray-500">데이터 블록</span>
+                <span class="font-bold text-[#191f28]">두 번째 물리 블록 <span class="text-gray-400 ml-1">(2KB, 마지막)</span></span>
+              </div>
+              <!-- Progress Bar Container -->
+              <div class="h-1.5 w-full bg-gray-100 relative overflow-hidden">
+                <div id="bd-1-progress" class="absolute left-0 top-0 h-full bg-[#3182f6] w-0"></div>
+              </div>
+              <div class="p-2 px-3 text-[11px] bg-gray-50 flex gap-2 items-center">
+                <span class="text-gray-500">상태</span><span id="bd-1-status" class="italic text-gray-500">Waiting</span>
+              </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="w-px h-6 bg-gray-300 border-l-2 border-dashed border-gray-300 absolute left-8 top-[250px] z-0"></div>
+
+             <!-- BD 2 (Tail) -->
+             <div id="bd-2" class="bd-card bg-white border-dashed shadow-sm rounded-lg overflow-hidden opacity-60">
+              <div class="bg-gray-50 text-gray-500 text-xs font-bold px-3 py-2 border-b border-gray-200 flex justify-between items-center">
+                <span>BD 2 (@0x1080)</span>
+                <span id="bd-2-tag" class="text-[9px] bg-red-100 text-red-600 border border-red-200 px-1.5 py-0.5 rounded hidden font-bold">TAILDESC (CPU 지정)</span>
+              </div>
+              <div class="p-3 text-center text-[10px] text-gray-500 font-bold leading-tight">
+                NXTDESC == TAILDESC 매칭 시,<br>
+                모든 처리를 중단하고 CPU에게 Interrupt 발생.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Actual Physical Memory Data -->
+        <div class="flex-1 bg-white border border-[#e5e8eb] p-6 rounded-xl relative shadow-inner">
+           <h4 class="text-xs font-bold text-gray-500 mb-6 tracking-wide text-center">Physical Memory (Scattered Data)</h4>
+           
+           <div class="space-y-4">
+             <!-- Data Chunk 1 -->
+             <div id="data-chunk-0" class="data-chunk bg-gray-50 p-4 rounded-lg relative overflow-hidden">
+               <div class="flex justify-between items-center mb-2 relative z-10">
+                 <span class="text-[11px] text-purple-600 font-bold bg-purple-100 px-2 py-0.5 rounded">물리 블록 A</span>
+                 <span class="text-[10px] font-bold text-gray-500">4KB Block</span>
+               </div>
+               <!-- Progress Bar -->
+               <div class="h-2 w-full bg-gray-200 rounded-full overflow-hidden relative z-10">
+                 <div id="data-prog-0" class="h-full bg-purple-500 w-0"></div>
+               </div>
+               <i data-lucide="file-image" class="absolute -right-2 -bottom-2 w-16 h-16 text-purple-100 z-0"></i>
+             </div>
+             
+             <!-- Irrelevant Memory Gap -->
+             <div class="text-center py-2">
+               <i data-lucide="more-vertical" class="w-4 h-4 text-gray-300 mx-auto"></i>
+               <span class="text-[9px] text-gray-400">다른 프로그램이 사용 중인 메모리 영역</span>
+               <i data-lucide="more-vertical" class="w-4 h-4 text-gray-300 mx-auto"></i>
+             </div>
+
+             <!-- Data Chunk 2 -->
+             <div id="data-chunk-1" class="data-chunk bg-gray-50 p-4 rounded-lg relative overflow-hidden">
+               <div class="flex justify-between items-center mb-2 relative z-10">
+                 <span class="text-[11px] text-pink-600 font-bold bg-pink-100 px-2 py-0.5 rounded">물리 블록 B</span>
+                 <span class="text-[10px] font-bold text-gray-500">2KB Block (EOF)</span>
+               </div>
+               <!-- Progress Bar -->
+               <div class="h-2 w-full bg-gray-200 rounded-full overflow-hidden relative z-10">
+                 <div id="data-prog-1" class="h-full bg-pink-500 w-0"></div>
+               </div>
+               <i data-lucide="file-image" class="absolute -right-2 -bottom-2 w-16 h-16 text-pink-100 z-0"></i>
+             </div>
+           </div>
+        </div>
+      </div>
+    </div>
+  </section>

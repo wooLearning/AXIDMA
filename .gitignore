@@ -1,0 +1,33 @@
+# Local study/source material. Keep it out of the public GitHub Pages repo.
+_local_materials/
+
+# Trainee/source bundles and hardware/software source files.
+*.trainee/
+*.trainee.zip
+*.zip
+*.v
+*.sv
+*.vh
+*.c
+*.h
+
+# PDF study material is local by default.
+*.pdf
+!docs/pdfs/
+!docs/pdfs/*.pdf
+
+# Local notes, extracted text, and work logs.
+research/
+task_plan.md
+progress.md
+findings.md
+*.log
+
+# Browser/render/test artifacts.
+.playwright-cli/
+output/
+
+# OS/editor noise.
+.DS_Store
+Thumbs.db
+*.swp

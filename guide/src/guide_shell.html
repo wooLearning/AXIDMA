@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AXI DMA Advanced Guidebook</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23191f28'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-size='18' font-family='Arial' font-weight='700' fill='white'%3EA%3C/text%3E%3C/svg%3E">
+  
+  <!-- Standalone CSS -->
+  <style>
+{{GUIDE_CSS}}
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header / GNB -->
+  <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-[#191f28] rounded-lg flex items-center justify-center text-white font-bold text-lg">A</div>
+      <h1 class="text-xl font-bold text-[#191f28] tracking-tight">AXI DMA Architecture Guide</h1>
+    </div>
+    
+    <!-- Desktop Nav -->
+    <nav class="hidden lg:flex gap-1 bg-[#f2f4f6] p-1 rounded-xl overflow-x-auto">
+      <button onclick="switchTab('intro')" id="nav-intro" class="tab-btn px-4 py-2 rounded-lg text-[13px] font-semibold transition-all bg-white text-[#191f28] shadow-sm">1. Big Picture</button>
+      <button onclick="switchTab('axi4')" id="nav-axi4" class="tab-btn px-4 py-2 rounded-lg text-[13px] font-semibold transition-all text-[#8b95a1] hover:text-[#4e5968] hover:bg-gray-200/50">2. AXI4 Burst</button>
+      <button onclick="switchTab('axi')" id="nav-axi" class="tab-btn px-4 py-2 rounded-lg text-[13px] font-semibold transition-all text-[#8b95a1] hover:text-[#4e5968] hover:bg-gray-200/50">3. AXI-Stream</button>
+      <button onclick="switchTab('sg')" id="nav-sg" class="tab-btn px-4 py-2 rounded-lg text-[13px] font-semibold transition-all text-[#8b95a1] hover:text-[#4e5968] hover:bg-gray-200/50">4. SG 프로세스 심화</button>
+      <button onclick="switchTab('csr')" id="nav-csr" class="tab-btn px-4 py-2 rounded-lg text-[13px] font-semibold transition-all text-[#8b95a1] hover:text-[#4e5968] hover:bg-gray-200/50">5. CSR 비트맵</button>
+      <button onclick="switchTab('case')" id="nav-case" class="tab-btn px-4 py-2 rounded-lg text-[13px] font-semibold transition-all text-[#8b95a1] hover:text-[#4e5968] hover:bg-gray-200/50">6. TEA 파이프라인</button>
+    </nav>
+  </header>
+
+  <!-- Mobile Nav -->
+  <div class="lg:hidden bg-white border-b border-gray-200 px-2 py-2 flex overflow-x-auto hide-scrollbar gap-2">
+    <button onclick="switchTab('intro')" id="mob-intro" class="mob-btn shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#191f28] text-white">1. Big Picture</button>
+    <button onclick="switchTab('axi4')" id="mob-axi4" class="mob-btn shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200">2. Burst</button>
+    <button onclick="switchTab('axi')" id="mob-axi" class="mob-btn shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200">3. Stream</button>
+    <button onclick="switchTab('sg')" id="mob-sg" class="mob-btn shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200">4. SG 모드</button>
+    <button onclick="switchTab('csr')" id="mob-csr" class="mob-btn shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200">5. CSR</button>
+    <button onclick="switchTab('case')" id="mob-case" class="mob-btn shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200">6. TEA 사례</button>
+  </div>
+
+  <main class="max-w-5xl w-full mx-auto px-4 py-8 lg:py-10 flex-1">
+{{CHAPTERS}}
+
+  </main>
+
+  <footer class="mt-auto border-t border-gray-200 bg-[#f9fafb] py-8">
+    <div class="max-w-5xl mx-auto px-4 text-center text-[#8b95a1] text-xs">
+      <p>AXI DMA Architecture Guidebook</p>
+      <p class="mt-1">Self-contained HTML guide for AXI DMA architecture study.</p>
+    </div>
+  </footer>
+
+  <!-- Logic Scripts -->
+  <script>
+{{GUIDE_JS}}
+  </script>
+</body>
+</html>
