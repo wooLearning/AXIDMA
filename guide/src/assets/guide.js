@@ -190,6 +190,88 @@
       isAxiAnimating = false;
     }
 
+    // AXI-Stream Packet Animation Logic (Chapter 3)
+    let isStreamAnimating = false;
+
+    async function runStreamAnimation() {
+      if (isStreamAnimating) return;
+
+      const btn = document.getElementById('btn-stream');
+      const channel = document.getElementById('stream-channel');
+      const belt = channel ? channel.querySelector('div') : null;
+      if (!btn || !channel || !belt) return;
+
+      isStreamAnimating = true;
+      btn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Streaming...`;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+      lucide.createIcons();
+
+      channel.querySelectorAll('.stream-packet, .stream-signal-chip').forEach((element) => element.remove());
+      belt.classList.add('conveyor-belt', 'conveyor-active');
+      belt.style.backgroundColor = '#8b5cf6';
+
+      const streamElements = [btn, channel, belt];
+      const abortIfSceneUnmounted = () => {
+        if (streamElements.some((element) => !element.isConnected)) {
+          isStreamAnimating = false;
+          return true;
+        }
+        return false;
+      };
+
+      const signalChip = document.createElement('div');
+      signalChip.className = 'stream-signal-chip absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white border border-purple-200 text-[11px] font-bold text-[#4e5968] rounded-full px-3 py-1 shadow-sm';
+      signalChip.innerHTML = '<span class="text-[#3182f6]">TVALID=1</span> · <span class="text-green-600">TREADY=1</span>';
+      channel.appendChild(signalChip);
+
+      const createStreamPacket = (index, isLast) => {
+        const packet = document.createElement('div');
+        packet.className = 'stream-packet absolute z-20 bg-[#3182f6] text-white text-[10px] font-bold px-3 py-1.5 rounded-md shadow-md flex items-center gap-2 whitespace-nowrap';
+        packet.style.left = '-72px';
+        packet.style.top = '50%';
+        packet.style.opacity = '0';
+        packet.style.transform = 'translate(0, -50%)';
+        packet.innerHTML = isLast
+          ? `TDATA D${index}<span class="bg-white text-red-600 px-1.5 py-0.5 rounded text-[9px] font-black">TLAST=1</span>`
+          : `TDATA <span class="text-blue-200 font-mono">D${index}</span>`;
+        channel.appendChild(packet);
+
+        requestAnimationFrame(() => {
+          const travelDistance = channel.clientWidth + 144;
+          packet.style.opacity = '1';
+          packet.style.transform = `translate(${travelDistance}px, -50%)`;
+        });
+
+        setTimeout(() => {
+          if (packet.parentNode) {
+            packet.style.opacity = '0';
+            setTimeout(() => packet.remove(), 300);
+          }
+        }, 2050);
+      };
+
+      for (let i = 0; i < 5; i++) {
+        createStreamPacket(i, i === 4);
+        await sleep(430);
+        if (abortIfSceneUnmounted()) return;
+      }
+
+      await sleep(2200);
+      if (abortIfSceneUnmounted()) return;
+
+      signalChip.innerHTML = '<span class="text-green-600">Packet complete</span> · TLAST accepted';
+      await sleep(900);
+      if (abortIfSceneUnmounted()) return;
+
+      signalChip.remove();
+      belt.classList.remove('conveyor-belt', 'conveyor-active');
+      belt.style.backgroundColor = '';
+      btn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> Stream 데이터 송신`;
+      btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      lucide.createIcons();
+      isStreamAnimating = false;
+    }
+
     // ADVANCED SG ANIMATION LOGIC (Chapter 4)
     let isSGAnimating = false;
 
