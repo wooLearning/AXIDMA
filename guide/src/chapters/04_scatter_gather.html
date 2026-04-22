@@ -4,22 +4,22 @@
   <section id="sg-section" class="tab-content space-y-10">
     <div class="space-y-4 border-b border-gray-200 pb-6">
       <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 4. Advanced Execution Architecture</span>
-      <h2 class="text-3xl font-extrabold text-[#191f28]">CPU의 역할과 Linked List의 진정한 의미</h2>
-      <p class="text-[#4e5968] text-lg">CPU가 descriptor를 만들고, DMA가 그 목록을 따라가며 흩어진 물리 메모리를 하나의 전송처럼 처리하는 구조입니다.</p>
+      <h2 class="text-3xl font-extrabold text-[#191f28]">Scatter-Gather와 Linked List Descriptor 아키텍처</h2>
+      <p class="text-[#4e5968] text-lg">단편화된 물리 메모리 공간을 CPU의 Buffer Descriptor (BD) 조립 과정을 통해 단일 연속 트랜잭션으로 가상화하여 전송하는 병렬적 구조를 다룹니다.</p>
     </div>
 
     <div class="bg-[#fff7ed] p-8 rounded-2xl border border-orange-200 shadow-sm relative overflow-hidden">
       <div class="absolute -right-10 -top-10 w-40 h-40 bg-orange-50 rounded-full blur-3xl -z-10"></div>
       <h3 class="text-xl font-bold text-orange-600 mb-4 flex items-center gap-2">
         <i data-lucide="help-circle" class="w-6 h-6 text-orange-500"></i>
-        4.1 가장 헷갈리는 질문: BD는 어떻게 미리 메모리에 들어가 있는가?
+        4.1 핵심 오개념 불식: BD(Buffer Descriptor)의 생성 주체
       </h3>
       <p class="text-[15px] text-gray-700 leading-relaxed mb-4">
-        아주 예리한 질문입니다. BD가 마법처럼 원래부터 메모리에 있는 것이 절대 아닙니다.
+        가장 빈번한 오해 중 하나는 메모리 상의 BD가 사전 정의된 상수이거나 하드웨어가 스스로 구축한다는 가정입니다.
       </p>
       <p class="text-[15px] text-gray-700 leading-relaxed mb-6">
-        DMA가 움직이기 <strong>바로 직전</strong>, <strong>CPU의 디바이스 드라이버가 공유 가능한 RAM에 descriptor 변수를 만들고 값을 쓰는 것</strong>입니다.
-        즉, CPU가 빈 RAM을 확보하고 descriptor 내용을 한 칸씩 작성한 뒤, 그 시작 주소만 DMA에게 알려주는 과정이 먼저 일어납니다.
+        현실의 구현에서는 DMA 하드웨어 기동 <strong>직전 단계</strong>에서, <strong>운영체제(OS) 최하단의 Device Driver가 시스템 동적 RAM 스페이스를 할당받아 인위적으로 BD 체인을 레코딩</strong>합니다.
+        즉, CPU가 주동자가 되어 물리 주소의 맵핑 포인터와 설정값들을 일일이 기입하여 Linked List를 완성한 뒤, 그 Entry Point (CURDESC)만 DMA 하드웨어에게 인가하는 방식입니다.
       </p>
 
       <div class="sg-code-panel">
@@ -29,24 +29,40 @@
         </div>
         <div>
           <div class="sg-code-section">
-            <p class="sg-code-comment">// 1. 메모리 공간 할당: CPU가 RAM 빈 공간을 확보</p>
-            <p class="sg-code-symbol">BD* bd0 = dma_alloc_coherent(sizeof(BD));</p>
-            <p class="sg-code-symbol">BD* bd1 = dma_alloc_coherent(sizeof(BD));</p>
+            <p class="sg-code-comment">// 1. Descriptor 메모리 확보: CPU가 DMA와 공유 가능한 RAM 영역을 확보</p>
+            <p><span class="sg-code-symbol">BD* bd0</span><span class="sg-code-text"> = dma_alloc_coherent(sizeof(BD), &amp;bd0_dma);</span><span class="sg-code-inline-comment">// CPU virtual pointer + DMA bus address</span></p>
+            <p><span class="sg-code-symbol">BD* bd1</span><span class="sg-code-text"> = dma_alloc_coherent(sizeof(BD), &amp;bd1_dma);</span></p>
           </div>
           <div class="sg-code-section">
-            <p class="sg-code-comment">// 2. CPU가 직접 RAM에 값을 기록: 작업 지시서 작성</p>
-            <p><span class="sg-code-symbol">bd0-&gt;NXTDESC</span><span class="sg-code-text"> = bd1;</span><span class="sg-code-inline-comment">// 다음 지시서는 bd1 위치</span></p>
-            <p><span class="sg-code-symbol">bd0-&gt;BUF_ADDR</span><span class="sg-code-text"> = block_A;</span><span class="sg-code-inline-comment">// 첫 데이터 블록</span></p>
+            <p class="sg-code-comment">// 2. CPU가 descriptor field 작성: DMA가 이해하는 주소는 dma_addr_t</p>
+            <p><span class="sg-code-symbol">bd0-&gt;NXTDESC</span><span class="sg-code-text"> = bd1_dma;</span><span class="sg-code-inline-comment">// 다음 descriptor의 DMA 주소</span></p>
+            <p><span class="sg-code-symbol">bd0-&gt;BUF_ADDR</span><span class="sg-code-text"> = block_A_dma;</span><span class="sg-code-inline-comment">// 실제 데이터 버퍼의 DMA 주소</span></p>
             <p><span class="sg-code-symbol">bd0-&gt;LENGTH</span><span class="sg-code-text"> = 4096;</span></p>
-            <p class="mt-3"><span class="sg-code-symbol">bd1-&gt;NXTDESC</span><span class="sg-code-text"> = TAIL_ADDRESS;</span><span class="sg-code-inline-comment">// 여기까지 처리하면 종료</span></p>
-            <p><span class="sg-code-symbol">bd1-&gt;BUF_ADDR</span><span class="sg-code-text"> = block_B;</span></p>
+            <p><span class="sg-code-symbol">bd0-&gt;CONTROL</span><span class="sg-code-text"> = SOF;</span><span class="sg-code-inline-comment">// 패킷 시작 지시</span></p>
+            <p class="mt-3"><span class="sg-code-symbol">bd1-&gt;NXTDESC</span><span class="sg-code-text"> = tail_dma;</span><span class="sg-code-inline-comment">// 여기까지 처리하면 종료</span></p>
+            <p><span class="sg-code-symbol">bd1-&gt;BUF_ADDR</span><span class="sg-code-text"> = block_B_dma;</span></p>
             <p><span class="sg-code-symbol">bd1-&gt;LENGTH</span><span class="sg-code-text"> = 2048;</span></p>
+            <p><span class="sg-code-symbol">bd1-&gt;CONTROL</span><span class="sg-code-text"> = EOF;</span><span class="sg-code-inline-comment">// 패킷 마지막 지시</span></p>
           </div>
           <div class="sg-code-section">
             <p class="sg-code-comment">// 3. AXI-Lite로 DMA에게 시작 위치와 끝 위치를 통보</p>
-            <p><span class="sg-code-blue">DMA_REG-&gt;CURDESC</span><span class="sg-code-text"> = bd0;</span><span class="sg-code-inline-comment">// DMA가 처음 읽을 descriptor</span></p>
-            <p><span class="sg-code-red">DMA_REG-&gt;TAILDESC</span><span class="sg-code-text"> = TAIL_ADDRESS;</span><span class="sg-code-red sg-code-inline-comment">// 마지막 주소를 쓰는 순간 DMA 시작</span></p>
+            <p><span class="sg-code-blue">DMA_REG-&gt;CURDESC</span><span class="sg-code-text"> = bd0_dma;</span><span class="sg-code-inline-comment">// DMA가 처음 읽을 descriptor 주소</span></p>
+            <p><span class="sg-code-red">DMA_REG-&gt;TAILDESC</span><span class="sg-code-text"> = tail_dma;</span><span class="sg-code-red sg-code-inline-comment">// 마지막 주소를 쓰는 순간 DMA 시작</span></p>
           </div>
+        </div>
+      </div>
+      <div class="mt-5 grid md:grid-cols-2 gap-4">
+        <div class="bg-white border border-orange-200 rounded-xl p-4">
+          <p class="text-[13px] font-bold text-orange-900">CPU pointer와 DMA address를 구분해야 합니다.</p>
+          <p class="text-[12px] text-orange-800 mt-1 leading-relaxed">
+            CPU가 descriptor를 쓰기 위해 사용하는 포인터와 DMA 하드웨어가 AXI 버스에 내보내는 주소는 다를 수 있습니다. Linux 드라이버에서는 보통 <strong>CPU virtual address</strong>와 <strong>dma_addr_t</strong>를 함께 관리합니다.
+          </p>
+        </div>
+        <div class="bg-white border border-orange-200 rounded-xl p-4">
+          <p class="text-[13px] font-bold text-orange-900">Descriptor도 캐시 동기화 대상입니다.</p>
+          <p class="text-[12px] text-orange-800 mt-1 leading-relaxed">
+            coherent 메모리가 아니면 BD field를 작성한 뒤 DMA가 보기 전에 clean/flush가 필요하고, DMA가 status를 업데이트한 뒤 CPU가 읽기 전 invalidate가 필요합니다.
+          </p>
         </div>
       </div>
     </div>
@@ -55,35 +71,105 @@
       <div class="absolute -right-10 -top-10 w-40 h-40 bg-blue-50 rounded-full blur-3xl -z-10"></div>
       <h3 class="text-xl font-bold text-[#191f28] mb-4 flex items-center gap-2">
         <i data-lucide="help-circle" class="w-6 h-6 text-[#3182f6]"></i>
-        4.2 CPU와 DMA의 분업 3단계
+        4.2 CPU와 DMA의 비동기적 협업 모델 단계
       </h3>
       <p class="text-[15px] text-[#4e5968] mb-6 leading-relaxed">
-        운영체제 환경에서는 하나의 논리 버퍼가 여러 물리 페이지로 흩어질 수 있습니다. SG DMA는 이 조각들을 descriptor chain으로 표현하고,
-        DMA가 각 descriptor를 읽어 실제 데이터 블록을 순서대로 전송합니다.
+        현대적인 가상 메모리(MMU) 환경에서는 대용량 논리 버퍼가 단편화된 물리 페이지 스페이스로 분산 파편화될 확률이 높습니다. SG-DMA는 이러한 조각들을 Descriptor Chain으로 체계화하고,
+        DMA 트랜잭션이 해당 리스트를 순차 지향하여 실제 페이로드 세그먼트들을 순서대로 일괄 병합 전송합니다.
       </p>
 
       <div class="grid md:grid-cols-3 gap-4 relative z-10 mt-6">
         <div class="bg-[#f9fafb] p-5 rounded-xl border border-gray-200 shadow-sm flex flex-col">
-            <span class="bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Step 1. Software (CPU)</span>
-            <h4 class="font-bold text-[#191f28] mt-3 mb-2 text-[14px]">작업 지시서 작성</h4>
+            <span class="bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Phase 1. Software (Kernel)</span>
+            <h4 class="font-bold text-[#191f28] mt-3 mb-2 text-[14px]">BD Chain Allocation</h4>
             <p class="text-[12.5px] text-gray-600 leading-relaxed">
-                CPU는 메모리의 빈 영역에 BD들을 만들고, 각 BD에 다음 BD 위치와 실제 데이터 블록 정보를 기록합니다. 이때 linked-list 또는 ring 구조가 됩니다.
+                운영체제 드라이버는 동적 할당된 RAM 영역에 개별 BD 노드를 인스턴스화하고, 포인터(NXTDESC)로 각 노드를 연결하여 Ring 또는 Linear 형태의 커스텀 리스트를 구축합니다.
             </p>
         </div>
         <div class="bg-[#f3e8ff] p-5 rounded-xl border border-purple-200 shadow-sm flex flex-col">
-            <span class="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Step 2. AXI-Lite</span>
-            <h4 class="font-bold text-purple-900 mt-3 mb-2 text-[14px]">DMA에게 시작점 통보</h4>
+            <span class="bg-purple-600 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Phase 2. AXI-Lite API</span>
+            <h4 class="font-bold text-purple-900 mt-3 mb-2 text-[14px]">SG Engine Trigger</h4>
             <p class="text-[12.5px] text-purple-800 leading-relaxed">
-                CPU는 AXI-Lite로 DMA 제어 레지스터에 현재 descriptor와 tail descriptor를 씁니다. 이 짧은 register write가 하드웨어 실행의 trigger가 됩니다.
+                제어 인터페이스(AXI-Lite)를 거쳐 SG DMA 내부의 Current Descriptor 레지스터와 Tail Descriptor 레지스터에 각각 시작 노드와 타겟 노드의 주소를 Push하면 즉각적인 하드웨어 패치가 개시됩니다.
             </p>
         </div>
         <div class="bg-[#eff7ff] p-5 rounded-xl border border-blue-200 shadow-sm flex flex-col">
-            <span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Step 3. AXI4 Full</span>
-            <h4 class="font-bold text-blue-900 mt-3 mb-2 text-[14px]">DMA의 독자적 수행</h4>
+            <span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded self-start">Phase 3. AXI4 / AXI-Stream</span>
+            <h4 class="font-bold text-blue-900 mt-3 mb-2 text-[14px]">Autonomous Execution</h4>
             <p class="text-[12.5px] text-blue-800 leading-relaxed">
-                DMA는 AXI4 Full master로 descriptor를 fetch하고, descriptor가 가리키는 데이터 블록을 전송한 뒤, 완료 상태를 기록하고 다음 BD로 이동합니다.
+                SG DMA는 자체적인 AXI4 Master 모듈을 활성화하여 BD를 로컬 SRAM에 Fetch-Decode한 후 데이터 청크를 복사하며, 처리가 완료된 BD에 대해서는 Status 필드를 Update합니다.
             </p>
         </div>
+      </div>
+    </div>
+
+    <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h3 class="text-xl font-bold text-[#191f28]">4.3 Buffer Descriptor 필드 맵</h3>
+          <p class="text-[14px] text-[#4e5968] mt-2 leading-relaxed">
+            BD는 “코드 파일”이 아니라 CPU가 RAM에 써 놓는 작은 작업 카드입니다. DMA는 이 카드를 AXI4로 읽고, 실제 데이터 버퍼를 찾아가며, 마지막에 상태 칸을 다시 써 줍니다.
+          </p>
+        </div>
+        <span class="shrink-0 text-[11px] font-bold text-[#3182f6] bg-[#eff7ff] border border-blue-200 rounded-full px-3 py-1">Descriptor as Data</span>
+      </div>
+
+      <div class="wide-visual">
+        <svg class="wide-visual-canvas" viewBox="0 0 960 420" role="img" aria-label="Scatter gather buffer descriptor field map" style="display:block;margin:0 auto;">
+          <rect x="18" y="18" width="924" height="384" rx="20" fill="#f8f9fa" stroke="#e5e8eb"></rect>
+          <text x="480" y="54" text-anchor="middle" fill="#191f28" font-size="22" font-weight="900">Buffer Descriptor Anatomy</text>
+          <text x="480" y="80" text-anchor="middle" fill="#4e5968" font-size="13" font-weight="700">CPU writes control fields → DMA fetches and transfers → DMA writes status fields</text>
+
+          <g font-size="13" font-weight="800">
+            <rect x="70" y="118" width="190" height="74" rx="14" fill="#f3e8ff" stroke="#d8b4fe"></rect>
+            <text x="92" y="146" fill="#7c3aed">NXTDESC</text>
+            <text x="92" y="169" fill="#4e5968" font-size="12">다음 작업 카드 위치</text>
+            <rect x="278" y="118" width="190" height="74" rx="14" fill="#eff7ff" stroke="#bfdbfe"></rect>
+            <text x="300" y="146" fill="#1d4ed8">BUF_ADDR</text>
+            <text x="300" y="169" fill="#4e5968" font-size="12">실제 데이터 버퍼 위치</text>
+            <rect x="486" y="118" width="190" height="74" rx="14" fill="#ecfdf5" stroke="#bbf7d0"></rect>
+            <text x="508" y="146" fill="#15803d">LENGTH / CONTROL</text>
+            <text x="508" y="169" fill="#4e5968" font-size="12">전송 길이, SOF/EOF</text>
+            <rect x="694" y="118" width="190" height="74" rx="14" fill="#fff7ed" stroke="#fed7aa"></rect>
+            <text x="716" y="146" fill="#c2410c">STATUS</text>
+            <text x="716" y="169" fill="#4e5968" font-size="12">완료, 에러, 실제 전송량</text>
+          </g>
+
+          <g stroke="#8b95a1" stroke-width="2" fill="none">
+            <path d="M260 155 H278"></path>
+            <path d="M468 155 H486"></path>
+            <path d="M676 155 H694"></path>
+          </g>
+
+          <g font-size="12" font-weight="800" text-anchor="middle">
+            <rect x="92" y="228" width="254" height="62" rx="14" fill="#ffffff" stroke="#d8b4fe"></rect>
+            <text x="219" y="253" fill="#7c3aed">CPU ownership</text>
+            <text x="219" y="273" fill="#4e5968">descriptor 작성, cache clean, CURDESC/TAILDESC trigger</text>
+            <rect x="354" y="228" width="254" height="62" rx="14" fill="#ffffff" stroke="#bfdbfe"></rect>
+            <text x="481" y="253" fill="#1d4ed8">DMA ownership</text>
+            <text x="481" y="273" fill="#4e5968">descriptor fetch, buffer read/write, next descriptor follow</text>
+            <rect x="616" y="228" width="254" height="62" rx="14" fill="#ffffff" stroke="#fed7aa"></rect>
+            <text x="743" y="253" fill="#c2410c">CPU reads back</text>
+            <text x="743" y="273" fill="#4e5968">status invalidate 후 완료/에러/잔량 확인</text>
+          </g>
+
+          <g stroke="#4e5968" stroke-width="2.4" fill="none" stroke-linecap="round">
+            <path d="M219 222 C250 206 298 202 354 228"></path>
+            <path d="M608 260 H616"></path>
+            <path d="M482 290 C512 332 690 334 742 292"></path>
+          </g>
+
+          <g font-size="12" font-weight="800">
+            <rect x="102" y="328" width="174" height="40" rx="20" fill="#191f28"></rect>
+            <text x="189" y="353" fill="#ffffff" text-anchor="middle">1. CPU writes BD</text>
+            <rect x="300" y="328" width="174" height="40" rx="20" fill="#3182f6"></rect>
+            <text x="387" y="353" fill="#ffffff" text-anchor="middle">2. DMA fetches</text>
+            <rect x="498" y="328" width="174" height="40" rx="20" fill="#22c55e"></rect>
+            <text x="585" y="353" fill="#ffffff" text-anchor="middle">3. Transfer data</text>
+            <rect x="696" y="328" width="174" height="40" rx="20" fill="#f97316"></rect>
+            <text x="783" y="353" fill="#ffffff" text-anchor="middle">4. Status update</text>
+          </g>
+        </svg>
       </div>
     </div>
 
@@ -91,14 +177,14 @@
     <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <div class="flex justify-between items-start mb-6">
         <div>
-          <h3 class="text-xl font-bold text-[#191f28]">4.3 Scatter-Gather 메모리 매핑 시뮬레이션</h3>
+          <h3 class="text-xl font-bold text-[#191f28]">4.4 동적 Scatter-Gather 메모리 매핑 시뮬레이션</h3>
           <p class="text-[13px] text-[#4e5968] mt-2 max-w-2xl">
-            왼쪽의 <strong>지시서(BD) 링</strong>과 오른쪽의 <strong>실제 물리 데이터 블록(Data Chunk)</strong>의 관계에 주목하세요.<br>
-            DMA가 descriptor를 읽고 &rarr; 해당 descriptor가 가리키는 데이터 블록을 전송하고 &rarr; 완료 상태를 기록하는 과정입니다.
+            왼측의 <strong>BD Linked List</strong> 구조와 우측의 분산된 <strong>물리 데이터 청크(Memory Segment)</strong> 간의 논리적 참조 트리에 주목하십시오.<br>
+            엔진의 BD Fetch 제어권 이동 &rarr; 버퍼링 대상 데이터 Payload 전송 &rarr; 상태 업데이트 (Status Commit) 주기입니다.
           </p>
         </div>
         <button id="runSgBtn" onclick="runSGAnimation()" class="bg-[#3182f6] hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap shadow-md mt-2">
-            <i data-lucide="play" class="w-4 h-4"></i> SG 리스트 실행
+            <i data-lucide="play" class="w-4 h-4"></i> SG Chain 실행
         </button>
       </div>
 

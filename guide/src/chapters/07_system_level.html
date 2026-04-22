@@ -1,0 +1,232 @@
+    <!-- ==========================================
+         Chapter 7. System-Level Integration
+    =========================================== -->
+    <section id="system-section" class="tab-content space-y-10">
+      <div class="space-y-4 border-b border-gray-200 pb-6">
+        <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 7. OS Integration & Debugging</span>
+        <h2 class="text-3xl font-extrabold text-[#191f28]">실전 통합: 주소, 캐시, SMMU, 디버깅 체크리스트</h2>
+        <p class="text-[#4e5968] text-lg">RTL과 IP 설정이 맞아도 Linux/SoC 환경에서는 주소 변환, 캐시 일관성, Stream 종료 조건 때문에 DMA가 멈춘 것처럼 보일 수 있습니다.</p>
+      </div>
+
+      <div class="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
+        <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <h3 class="text-xl font-bold text-[#191f28] mb-4 flex items-center gap-2">
+            <i data-lucide="hard-drive" class="w-5 h-5 text-[#3182f6]"></i>
+            7.1 Virtual Address, Physical Address, DMA Address
+          </h3>
+          <p class="text-[14px] text-[#4e5968] leading-relaxed mb-5">
+            사용자 프로그램의 포인터는 대부분 <strong>가상 주소</strong>입니다. 하지만 AXI 버스에 연결된 DMA 하드웨어는 그 값을 직접 이해하지 못합니다.
+            DMA 레지스터와 descriptor에는 OS가 매핑해 준 <strong>DMA address</strong> 또는 SoC 물리 주소 체계에서 유효한 주소가 들어가야 합니다.
+          </p>
+          <div class="grid md:grid-cols-3 gap-3">
+            <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-[#191f28]">CPU Virtual</p>
+              <p class="text-[12px] text-[#4e5968] mt-1">C 포인터, kernel/user가 읽고 쓰는 주소입니다.</p>
+            </div>
+            <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-blue-900">Physical</p>
+              <p class="text-[12px] text-blue-800 mt-1">DDR 컨트롤러 관점의 실제 메모리 위치입니다.</p>
+            </div>
+            <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-4">
+              <p class="text-[12px] font-bold text-green-900">DMA / Bus</p>
+              <p class="text-[12px] text-green-800 mt-1">DMA Master가 AXI에 내보내야 하는 주소입니다.</p>
+            </div>
+          </div>
+          <div class="mt-5 bg-[#fff1f2] border border-red-200 rounded-xl p-4">
+            <p class="text-[13px] font-bold text-red-900 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-4 h-4"></i> 가장 위험한 실수</p>
+            <p class="text-[13px] text-red-800 mt-1 leading-relaxed">
+              `malloc()` 또는 user pointer 값을 SOURCE/DEST/CURDESC 레지스터에 그대로 쓰면 안 됩니다. Linux에서는 `dma_alloc_coherent`, `dma_map_single` 같은 DMA API로 얻은 주소를 넘겨야 합니다.
+            </p>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <h3 class="text-xl font-bold text-[#191f28] mb-4 flex items-center gap-2">
+            <i data-lucide="shuffle" class="w-5 h-5 text-purple-600"></i>
+            7.2 Simple Mode와 SG Mode 선택
+          </h3>
+          <div class="space-y-4">
+            <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-[#191f28]">Simple / Direct Register Mode</p>
+              <p class="text-[12px] text-[#4e5968] mt-1 leading-relaxed">
+                주소와 길이를 레지스터에 직접 쓰고 한 번의 연속 버퍼를 전송합니다. 구조가 단순하지만 큰 파일, 분산된 페이지, 반복 전송에는 CPU 개입이 잦아집니다.
+              </p>
+            </div>
+            <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-blue-900">Scatter-Gather Mode</p>
+              <p class="text-[12px] text-blue-800 mt-1 leading-relaxed">
+                CPU는 descriptor ring만 준비하고, DMA가 descriptor를 fetch/decode/update하며 여러 버퍼 조각을 이어서 처리합니다. OS 환경에서는 현실적인 대용량 전송 모델입니다.
+              </p>
+            </div>
+            <div class="bg-[#fff7ed] border border-orange-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-orange-900">전환 기준</p>
+              <p class="text-[12px] text-orange-800 mt-1 leading-relaxed">
+                “하나의 contiguous buffer를 한 번 보내기”면 Simple, “여러 page/packet/frame을 끊김 없이 밀어 넣기”면 SG로 보는 것이 안전합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+        <h3 class="text-xl font-bold text-[#191f28] mb-4 flex items-center gap-2">
+          <i data-lucide="refresh-cw" class="w-5 h-5 text-[#8b5cf6]"></i>
+          7.3 Cache Coherency: Flush와 Invalidate
+        </h3>
+        <p class="text-[14px] text-[#4e5968] leading-relaxed mb-5">
+          CPU는 데이터를 캐시에 보관하고, DMA는 DDR을 직접 접근하는 경우가 많습니다. 따라서 양쪽이 같은 버퍼를 본다고 생각했는데 서로 다른 시점의 값을 보는 문제가 생깁니다.
+        </p>
+        <div class="grid md:grid-cols-3 gap-4">
+          <div class="bg-[#f3e8ff] border border-purple-200 rounded-xl p-5">
+            <p class="text-[13px] font-bold text-purple-900">MM2S 전</p>
+            <p class="text-[12px] text-purple-800 mt-2 leading-relaxed">CPU가 쓴 송신 데이터가 DDR에 반영되도록 cache clean/flush를 수행합니다.</p>
+          </div>
+          <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-5">
+            <p class="text-[13px] font-bold text-blue-900">S2MM 후</p>
+            <p class="text-[12px] text-blue-800 mt-2 leading-relaxed">DMA가 DDR에 쓴 수신 데이터를 CPU가 새로 읽도록 cache invalidate를 수행합니다.</p>
+          </div>
+          <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-5">
+            <p class="text-[13px] font-bold text-green-900">Descriptor</p>
+            <p class="text-[12px] text-green-800 mt-2 leading-relaxed">SG BD는 control field와 status field를 양쪽이 번갈아 쓰므로 데이터 버퍼만큼 중요합니다.</p>
+          </div>
+        </div>
+        <div class="mt-5 bg-[#f9fafb] border border-gray-200 rounded-xl p-4 text-[13px] text-[#4e5968] leading-relaxed">
+          <strong class="text-[#191f28]">실무 기준:</strong>
+          `dma_alloc_coherent`는 coherent memory를 제공해 descriptor나 control buffer에 적합하고, `dma_map_single`은 일반 streaming buffer를 DMA address로 매핑하는 흐름에 자주 쓰입니다.
+          버퍼가 cache line을 공유하면 unrelated data까지 오염될 수 있으므로 정렬(alignment)도 함께 봐야 합니다.
+        </div>
+
+        <div class="mt-6 bg-[#f9fafb] border border-gray-200 rounded-2xl p-6">
+          <h4 class="font-bold text-[#191f28] mb-3">Cache Sync Timeline: CPU와 DMA가 같은 데이터를 보게 만드는 순서</h4>
+          <div class="wide-visual">
+            <svg class="wide-visual-canvas" viewBox="0 0 960 360" role="img" aria-label="DMA cache coherency timeline" style="display:block;margin:0 auto;">
+              <rect x="18" y="18" width="924" height="324" rx="18" fill="#ffffff" stroke="#e5e8eb"></rect>
+              <text x="480" y="54" text-anchor="middle" fill="#191f28" font-size="22" font-weight="900">MM2S / S2MM Cache Coherency</text>
+              <text x="480" y="78" text-anchor="middle" fill="#4e5968" font-size="13" font-weight="700">CPU cache와 DDR 사이의 시점을 맞추지 않으면 DMA는 오래된 데이터나 CPU는 오래된 결과를 볼 수 있습니다.</text>
+
+              <g font-size="13" font-weight="800" text-anchor="middle">
+                <rect x="74" y="118" width="168" height="70" rx="14" fill="#f3e8ff" stroke="#d8b4fe"></rect>
+                <text x="158" y="145" fill="#7c3aed">1. CPU writes buffer</text>
+                <text x="158" y="166" fill="#4e5968" font-size="11">data may stay in cache</text>
+                <rect x="278" y="118" width="168" height="70" rx="14" fill="#eff7ff" stroke="#bfdbfe"></rect>
+                <text x="362" y="145" fill="#1d4ed8">2. Clean / Flush</text>
+                <text x="362" y="166" fill="#4e5968" font-size="11">push source data to DDR</text>
+                <rect x="482" y="118" width="168" height="70" rx="14" fill="#ecfdf5" stroke="#bbf7d0"></rect>
+                <text x="566" y="145" fill="#15803d">3. DMA transfer</text>
+                <text x="566" y="166" fill="#4e5968" font-size="11">AXI master reads/writes DDR</text>
+                <rect x="686" y="118" width="168" height="70" rx="14" fill="#fff7ed" stroke="#fed7aa"></rect>
+                <text x="770" y="145" fill="#c2410c">4. Invalidate</text>
+                <text x="770" y="166" fill="#4e5968" font-size="11">CPU reloads DMA result</text>
+              </g>
+
+              <g stroke="#8b95a1" stroke-width="2.4" fill="none" stroke-linecap="round">
+                <path d="M242 153 H278"></path>
+                <path d="M446 153 H482"></path>
+                <path d="M650 153 H686"></path>
+              </g>
+
+              <g font-size="12" font-weight="800">
+                <rect x="132" y="232" width="248" height="46" rx="12" fill="#eff7ff" stroke="#bfdbfe"></rect>
+                <text x="256" y="252" fill="#1d4ed8" text-anchor="middle">MM2S 전: clean/flush 필수</text>
+                <text x="256" y="270" fill="#4e5968" text-anchor="middle">CPU가 쓴 입력 데이터를 DMA가 볼 수 있게 함</text>
+                <rect x="580" y="232" width="248" height="46" rx="12" fill="#ecfdf5" stroke="#bbf7d0"></rect>
+                <text x="704" y="252" fill="#15803d" text-anchor="middle">S2MM 후: invalidate 필수</text>
+                <text x="704" y="270" fill="#4e5968" text-anchor="middle">DMA가 쓴 결과를 CPU가 새로 읽게 함</text>
+              </g>
+
+              <path d="M380 255 C430 294 530 294 580 255" stroke="#8b95a1" stroke-width="2.4" fill="none" stroke-dasharray="6 6"></path>
+              <text x="480" y="310" fill="#4e5968" font-size="12" font-weight="700" text-anchor="middle">Descriptor ring도 control/status를 양쪽이 번갈아 보므로 같은 원칙을 적용합니다.</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <h3 class="text-xl font-bold text-[#191f28] mb-4 flex items-center gap-2">
+            <i data-lucide="network" class="w-5 h-5 text-[#3182f6]"></i>
+            7.4 ACE, CHI, SMMU/IOMMU는 어디서 등장하는가?
+          </h3>
+          <p class="text-[14px] text-[#4e5968] leading-relaxed mb-5">
+            작은 FPGA 예제에서는 DMA가 DDR 물리 주소를 직접 읽는 그림으로 충분하지만, 큰 SoC에서는 coherent interconnect와 주소 변환 장치가 DMA 경로에 들어옵니다.
+          </p>
+          <div class="space-y-3">
+            <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-blue-900">ACE / ACE-Lite</p>
+              <p class="text-[12px] text-blue-800 mt-1">CPU cache와 DMA Master 사이의 coherency를 interconnect 수준에서 일부 보장하는 AXI 확장 계열입니다.</p>
+            </div>
+            <div class="bg-[#f3e8ff] border border-purple-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-purple-900">CHI</p>
+              <p class="text-[12px] text-purple-800 mt-1">복잡한 멀티코어 SoC에서 coherent agent들이 더 확장성 있게 통신하기 위한 프로토콜 계열입니다.</p>
+            </div>
+            <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-4">
+              <p class="text-[13px] font-bold text-green-900">SMMU / IOMMU</p>
+              <p class="text-[12px] text-green-800 mt-1">장치가 내보내는 DMA address를 실제 physical address로 변환하고, 접근 권한을 제한해 잘못된 DMA 접근을 막습니다.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+          <h3 class="text-xl font-bold text-[#191f28] mb-4 flex items-center gap-2">
+            <i data-lucide="activity" class="w-5 h-5 text-amber-500"></i>
+            7.5 멈춤 현상 디버깅 순서
+          </h3>
+          <ol class="space-y-3 text-[13px] text-[#4e5968] leading-relaxed">
+            <li class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4"><strong class="text-[#191f28]">1. CSR 상태:</strong> Halted/Idle/Error/IOC IRQ를 먼저 확인하고, Error bit는 write-1-to-clear 정책을 구분합니다.</li>
+            <li class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4"><strong class="text-[#191f28]">2. Stream handshake:</strong> ILA에서 TVALID와 TREADY가 동시에 High가 되는지, 특정 지점에서 영구 정지되는지 봅니다.</li>
+            <li class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4"><strong class="text-[#191f28]">3. TLAST/TUSER:</strong> 일반 패킷은 TLAST, video stream은 TUSER(SOF)와 TLAST(EOL)의 위치를 확인합니다.</li>
+            <li class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4"><strong class="text-[#191f28]">4. Address/cache:</strong> 레지스터와 descriptor에 virtual pointer가 들어가지 않았는지, flush/invalidate를 수행했는지 확인합니다.</li>
+            <li class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4"><strong class="text-[#191f28]">5. FIFO depth:</strong> 연산 IP latency와 DDR stall을 견딜 만큼 FIFO/skid buffer가 있는지 검토합니다.</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="bg-[#191f28] p-8 rounded-2xl border border-gray-800 shadow-sm">
+        <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+          <i data-lucide="check-square" class="w-5 h-5 text-green-400"></i>
+          7.6 최종 체크리스트
+        </h3>
+        <div class="grid md:grid-cols-2 gap-3">
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">IP 선택:</strong> Memory-to-Memory는 CDMA, Video frame은 VDMA, Stream 가속기는 AXI DMA, 다중 Stream은 MCDMA로 구분했는가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">Building block 선택:</strong> 완성형 DMA가 아니라 command/status와 data stream을 직접 조립해야 하는 구조라면 DataMover 계열을 검토했는가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">Mode 선택:</strong> Simple/Direct Register와 Scatter-Gather를 IP 종류가 아니라 동작 모드 축으로 구분했는가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">Handshake:</strong> TVALID/TREADY 동시 High에서만 데이터와 sideband가 갱신되는가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">TLAST:</strong> S2MM 완료 조건에 필요한 마지막 beat 신호가 정확히 발생하는가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">Video:</strong> TUSER(SOF), TLAST(EOL), HSIZE, VSIZE, stride가 서로 일치하는가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">Address:</strong> DMA 레지스터와 descriptor에 CPU virtual pointer가 아닌 DMA address를 넣었는가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">Cache:</strong> 송신 전 flush/clean, 수신 후 invalidate, descriptor cache sync를 처리했는가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">SG:</strong> CURDESC/TAILDESC 순서, next descriptor, status update 위치가 정확한가?</span>
+          </label>
+          <label class="flex items-start gap-3 p-3 bg-gray-800/60 rounded-xl border border-gray-700">
+            <input type="checkbox" class="mt-1 w-4 h-4 rounded border-gray-500">
+            <span class="text-sm text-gray-300"><strong class="text-white">Backpressure:</strong> TREADY가 내려가도 데이터/TLAST/TUSER가 보존되고 FIFO가 overflow/underflow 되지 않는가?</span>
+          </label>
+        </div>
+      </div>
+    </section>

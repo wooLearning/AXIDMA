@@ -5,7 +5,7 @@
       <div class="space-y-4 border-b border-gray-200 pb-6">
         <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 6. Real-world Pipeline</span>
         <h2 class="text-3xl font-extrabold text-[#191f28]">TEA 암호화 파이프라인 구동 시뮬레이션</h2>
-        <p class="text-[#4e5968] text-lg">메모리의 평문 데이터가 DMA와 AXI-Stream 가속기를 지나 암호문으로 저장되는 흐름을 사례 중심으로 봅니다.</p>
+        <p class="text-[#4e5968] text-lg">SystemVerilog Testbench 환경에서 검증되는 실제 유스케이스로서, 고속 메모리 맵(Memory Map) 평문 데이터가 AXI-Stream 기반의 IP를 통과하며 암호문으로 변환되는 동적 파이프라인을 분석합니다.</p>
       </div>
 
       <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
@@ -13,26 +13,26 @@
         <div class="grid md:grid-cols-2 gap-6">
           <div class="space-y-3">
             <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
-              <p class="text-[13px] text-[#191f28] font-semibold">메모리 초기화</p>
-              <p class="text-[13px] text-[#4e5968] mt-1">단일 전송 테스트는 source 구간에 패턴을 채우고 destination 구간은 비운 뒤 DMA를 실행합니다.</p>
+              <p class="text-[13px] text-[#191f28] font-semibold">메모리 초기화 (Pattern Injection)</p>
+              <p class="text-[13px] text-[#4e5968] mt-1">Source Address 스페이스에 테스트 벡터(평문 데이터)를 주입하고, Target Destination 스페이스는 Clear하여 검증 무결성을 확보합니다.</p>
             </div>
             <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
-              <p class="text-[13px] text-[#191f28] font-semibold">레지스터 프로그래밍</p>
-              <p class="text-[13px] text-[#4e5968] mt-1">제어 설정, 읽기 주소, 쓰기 주소, 전송 정보 순서로 설정하고 시작 플래그가 내려갈 때까지 상태를 확인합니다.</p>
+              <p class="text-[13px] text-[#191f28] font-semibold">레지스터 프로그래밍 (MMIO 설정)</p>
+              <p class="text-[13px] text-[#4e5968] mt-1">Bus Functional Model(BFM)을 통해 인터럽트/포인터/트랜잭션 길이 기반의 DMA 레지스터를 Write한 후 GO 플래그를 Assert합니다.</p>
             </div>
             <div class="bg-[#f9fafb] border border-gray-200 rounded-xl p-4">
-              <p class="text-[13px] text-[#191f28] font-semibold">결과 비교</p>
-              <p class="text-[13px] text-[#4e5968] mt-1">DMA 완료 후 destination 메모리를 바이트 단위로 읽어 기대값과 비교합니다. mismatch가 생기면 즉시 오류를 출력합니다.</p>
+              <p class="text-[13px] text-[#191f28] font-semibold">결과 검증 (Golden Model 비교)</p>
+              <p class="text-[13px] text-[#4e5968] mt-1">Hardware 트랜잭션 종료 시, Host는 Destination Memory Block을 인출하여 C-Reference 모델과 Byte 단위의 Mismatch를 대조합니다.</p>
             </div>
           </div>
           <div class="bg-[#191f28] text-white rounded-2xl p-6">
             <h4 class="font-bold mb-3">검증 체크리스트</h4>
             <ul class="space-y-2 text-[13px] text-gray-200">
-              <li>Enable 비활성 상태에서 start trigger 처리 여부</li>
-              <li>Source/Destination alignment 불일치 처리</li>
-              <li>Chunk 크기 보정 및 최소 전송 단위 처리</li>
-              <li>마지막 beat의 partial transfer 처리</li>
-              <li>FIFO empty/full 조건에서 read/write engine 정지 조건</li>
+              <li>Disable(EN=0) 상태에서의 자발적 Trigger 무시 기동 확인</li>
+              <li>Source/Destination Boundary Alignment 차이 시 Misaligned Handler 구동 확인</li>
+              <li>최소 단편화(Base Beat) 및 잔여 Payload(Partial Transfer) 정합성 확인</li>
+              <li>TLAST Propagation 시퀀스와 연계된 종단 처리 검증</li>
+              <li>FIFO Capacity 한계(Full/Empty)에 따른 Backpressure 반응성 점검</li>
             </ul>
           </div>
         </div>
@@ -41,7 +41,7 @@
       <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
         <div class="flex justify-between items-start mb-6">
           <p class="text-[14px] text-[#4e5968] max-w-2xl leading-relaxed">
-            기본 MM2MM DMA를 AXI-Stream 가속기 시스템으로 확장한 구성입니다. <strong>TEA(Tiny Encryption Algorithm) 코어</strong>는 AXI-Stream 슬레이브로 데이터를 받아 64-bit 단위로 암호화 연산을 수행한 뒤, 다시 AXI-Stream 마스터를 통해 수신 DMA 경로로 내보냅니다.
+            순수 Memory-to-Memory 연결망 사이에 AXI-Stream 기반 Custom Accelerator를 삽입한 아키텍처입니다. <strong>TEA(Tiny Encryption Algorithm) Core</strong>는 AXI-Stream Slave 인터페이스로 파이프라인의 입력을 수신하여 64-bit 단위 비대칭 연산을 수행한 뒤, 동기화된 M_AXIS 경로를 통해 Write Engine 측으로 배출합니다.
           </p>
           <button onclick="runTeaAnimation()" id="btn-tea" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-md whitespace-nowrap mt-2">
             <i data-lucide="lock" class="w-4 h-4"></i> 암호화 파이프라인 가동
@@ -87,10 +87,63 @@
         </div>
         </div>
 
+        <div class="mt-6 bg-[#f9fafb] border border-gray-200 rounded-2xl p-6">
+          <h4 class="font-bold text-[#191f28] mb-3">TLAST Latency Alignment: 입력 종단 신호를 출력 데이터에 다시 맞추기</h4>
+          <p class="text-[13px] text-[#4e5968] mb-4 leading-relaxed">
+            암호화 코어가 내부에서 여러 cycle을 소비하면, 데이터만 지연되는 것이 아니라 TLAST도 같은 깊이만큼 지연되어야 합니다.
+            아래 그림처럼 입력 D3에 붙어 있던 TLAST는 출력 C3이 나가는 순간에 맞춰 다시 발생해야 S2MM이 패킷 완료를 인식합니다.
+          </p>
+          <div class="wide-visual">
+            <svg class="wide-visual-canvas" viewBox="0 0 960 330" role="img" aria-label="TEA TLAST latency alignment diagram" style="display:block;margin:0 auto;">
+              <rect x="18" y="18" width="924" height="294" rx="18" fill="#ffffff" stroke="#e5e8eb"></rect>
+              <text x="480" y="52" text-anchor="middle" fill="#191f28" font-size="22" font-weight="900">Pipeline Delay Matching</text>
+              <text x="480" y="76" text-anchor="middle" fill="#4e5968" font-size="13" font-weight="700">Payload와 sideband(TLAST)는 같은 latency path를 지나야 합니다.</text>
+
+              <g font-size="13" font-weight="800" text-anchor="middle">
+                <rect x="74" y="112" width="84" height="44" rx="10" fill="#eff7ff" stroke="#bfdbfe"></rect>
+                <text x="116" y="140" fill="#1d4ed8">D0</text>
+                <rect x="174" y="112" width="84" height="44" rx="10" fill="#eff7ff" stroke="#bfdbfe"></rect>
+                <text x="216" y="140" fill="#1d4ed8">D1</text>
+                <rect x="274" y="112" width="84" height="44" rx="10" fill="#eff7ff" stroke="#bfdbfe"></rect>
+                <text x="316" y="140" fill="#1d4ed8">D2</text>
+                <rect x="374" y="112" width="84" height="44" rx="10" fill="#fff1f2" stroke="#fecaca"></rect>
+                <text x="416" y="132" fill="#dc2626">D3</text>
+                <text x="416" y="150" fill="#dc2626" font-size="11">TLAST</text>
+
+                <rect x="512" y="102" width="114" height="64" rx="14" fill="#fff7ed" stroke="#fed7aa"></rect>
+                <text x="569" y="127" fill="#c2410c">TEA Core</text>
+                <text x="569" y="147" fill="#4e5968" font-size="11">N-cycle latency</text>
+
+                <rect x="682" y="112" width="84" height="44" rx="10" fill="#ecfdf5" stroke="#bbf7d0"></rect>
+                <text x="724" y="140" fill="#15803d">C0</text>
+                <rect x="782" y="112" width="84" height="44" rx="10" fill="#ecfdf5" stroke="#bbf7d0"></rect>
+                <text x="824" y="140" fill="#15803d">C1...</text>
+              </g>
+
+              <g stroke="#4e5968" stroke-width="2.5" fill="none" stroke-linecap="round">
+                <path d="M458 134 H502"></path>
+                <path d="M626 134 H672"></path>
+              </g>
+
+              <g font-size="12" font-weight="800" text-anchor="middle">
+                <rect x="180" y="208" width="184" height="46" rx="12" fill="#f3e8ff" stroke="#d8b4fe"></rect>
+                <text x="272" y="228" fill="#7c3aed">TLAST shift register</text>
+                <text x="272" y="246" fill="#4e5968" font-size="11">same depth as data pipe</text>
+                <rect x="596" y="208" width="184" height="46" rx="12" fill="#fff1f2" stroke="#fecaca"></rect>
+                <text x="688" y="228" fill="#dc2626">Output TLAST</text>
+                <text x="688" y="246" fill="#4e5968" font-size="11">assert with final C beat</text>
+              </g>
+              <path d="M416 158 C416 196 280 190 272 208" stroke="#8b5cf6" stroke-width="2.4" fill="none"></path>
+              <path d="M364 231 H586" stroke="#8b5cf6" stroke-width="2.4" fill="none"></path>
+              <path d="M688 208 C690 188 724 178 824 158" stroke="#dc2626" stroke-width="2.4" fill="none"></path>
+            </svg>
+          </div>
+        </div>
+
         <div class="mt-6 bg-[#fff7ed] p-5 rounded-xl border border-orange-200">
-          <h4 class="font-bold text-orange-600 text-sm mb-2 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-4 h-4"></i> 설계 시 핵심 포인트 (패킷 끝 표시 재생성)</h4>
+          <h4 class="font-bold text-orange-600 text-sm mb-2 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-4 h-4"></i> 설계 시 핵심 포인트 (TLAST 동기화)</h4>
           <p class="text-[13px] text-gray-700">
-            하드웨어 IP(TEA Core) 설계 시 가장 주의할 점은, <strong>입력 패킷의 마지막 표시를 내부 연산 지연만큼 맞춰 지연시킨 뒤 출력 패킷 끝에서 다시 내보내는 것</strong>입니다. 이 타이밍이 어긋나면 수신부 DMA가 완료 조건을 보지 못해 시스템이 멈출 수 있습니다.
+            스트림 가속기(Hardware IP) 통합 설계 시의 결정적 이슈는 <strong>입력 Packet의 종단 마커(TLAST)가 파이프라인의 연산 Latency만큼 Delay Line을 거쳐 출력 패킷의 정위치에 복원</strong>되어야 한다는 점입니다. TLAST의 Propagation 지연이 어긋날 경우 수신단(Write Engine)의 상태 전이 조건이 누락되어 Deadlock을 초래합니다.
           </p>
         </div>
 
@@ -98,19 +151,19 @@
           <div class="bg-[#eff7ff] border border-blue-200 rounded-xl p-5">
             <h4 class="font-bold text-blue-900 text-sm mb-2">Stream 입력 수락</h4>
             <p class="text-[12px] text-blue-800 leading-relaxed">
-              S_TVALID와 S_TREADY가 동시에 1인 cycle만 실제 입력으로 봅니다. 이 순간의 payload와 packet-end 정보를 함께 잡아야 합니다.
+              `S_TVALID && S_TREADY` 조건이 High인 Cycle에서만 유효 페이로드로 래치합니다. 이 때 TLAST 메타데이터도 페이로드와 함께 파이프라인에 캡처해야 합니다.
             </p>
           </div>
           <div class="bg-[#fff7ed] border border-orange-200 rounded-xl p-5">
-            <h4 class="font-bold text-orange-900 text-sm mb-2">TEA 연산 지연</h4>
+            <h4 class="font-bold text-orange-900 text-sm mb-2">Internal 연산 지연</h4>
             <p class="text-[12px] text-orange-800 leading-relaxed">
-              TEA core는 64-bit block을 여러 round로 처리하므로 입력 valid가 곧바로 출력 valid가 되지 않습니다. valid와 boundary를 같은 latency로 지연시킵니다.
+              TEA의 Fiestel 결합 특성 상 다단 라운드 버퍼링이 발생합니다. TLAST 역시 동일한 Shift Register 깊이(Depth)만큼 일치된 지연(Latency) 보상을 수반해야 합니다.
             </p>
           </div>
           <div class="bg-[#ecfdf5] border border-green-200 rounded-xl p-5">
-            <h4 class="font-bold text-green-900 text-sm mb-2">Stream 출력 완료</h4>
+            <h4 class="font-bold text-green-900 text-sm mb-2">Stream 출력 배출</h4>
             <p class="text-[12px] text-green-800 leading-relaxed">
-              M_TVALID와 M_TREADY가 만나는 cycle에 암호문 block이 빠져나갑니다. 마지막 block에서는 지연된 packet-end를 함께 내보냅니다.
+              `M_TVALID && M_TREADY` Handshake 조건에 대응하여 암호문을 방출합니다. 블록의 종단 사이클에 지연된 보상 TLAST 펄스를 일치시켜 Master 버스에 회귀합니다.
             </p>
           </div>
         </div>
@@ -128,27 +181,27 @@
 
         <div class="grid md:grid-cols-2 gap-5">
           <div class="bg-[#eff7ff] border border-blue-200 rounded-2xl p-5">
-            <h4 class="font-bold text-blue-900 mb-2">Protocol Layer</h4>
+            <h4 class="font-bold text-blue-900 mb-2">Protocol Architecture</h4>
             <p class="text-[13px] text-blue-800 leading-relaxed">
-              AXI4는 주소 채널과 데이터 채널을 분리해 burst 전송을 가능하게 합니다. Read는 AR/R, Write는 AW/W/B 채널을 사용하며, 각 채널은 VALID/READY handshake로 독립적으로 흐릅니다.
+              AXI4는 어드레스 페이즈와 데이터 페이즈를 Decoupling하여 파이프라인 버스트를 지원합니다. AR/R 채널과 AW/W/B 채널 간의 비동기적 독립 Handshake 메커니즘을 핵심으로 합니다.
             </p>
           </div>
           <div class="bg-[#f3e8ff] border border-purple-200 rounded-2xl p-5">
-            <h4 class="font-bold text-purple-900 mb-2">Control Layer</h4>
+            <h4 class="font-bold text-purple-900 mb-2">MMIO Control Model</h4>
             <p class="text-[13px] text-purple-800 leading-relaxed">
-              CPU는 AXI-Lite 같은 제어 인터페이스로 CSR을 설정합니다. enable, source, destination, length, chunk, start, done, interrupt가 기본 제어 축입니다.
+              호스트 OS는 AXI-Lite를 경유해 IP의 CSR을 핸들링합니다. Base Address, Length, Trigger Flag 등의 제어 평면(Control Plane)이 하드웨어의 Datapath를 점화합니다.
             </p>
           </div>
           <div class="bg-[#ecfdf5] border border-green-200 rounded-2xl p-5">
-            <h4 class="font-bold text-green-900 mb-2">Data Layer</h4>
+            <h4 class="font-bold text-green-900 mb-2">Internal Data Dynamics</h4>
             <p class="text-[13px] text-green-800 leading-relaxed">
-              DMA 내부는 read engine, FIFO, write engine으로 나누면 이해하기 쉽습니다. FIFO는 read 응답과 write 승인 타이밍이 달라도 데이터 흐름을 안정적으로 이어주는 완충 구간입니다.
+              비동기 Clock Domain 또는 트래픽 지연 편차를 흡수하는 Synchronous FSM 버퍼가 매개체로 작동하며, Read FSM과 Write FSM 간의 Elastic Queueing 효과를 보장합니다.
             </p>
           </div>
           <div class="bg-[#fff7ed] border border-orange-200 rounded-2xl p-5">
-            <h4 class="font-bold text-orange-900 mb-2">Verification Layer</h4>
+            <h4 class="font-bold text-orange-900 mb-2">Verification Coverage</h4>
             <p class="text-[13px] text-orange-800 leading-relaxed">
-              검증은 reset, 정상 전송, misalignment, partial beat, timeout, interrupt clear를 확인해야 합니다. 마지막에는 destination 메모리가 source와 동일한지 비교합니다.
+              코너 케이스(Unaligned Access, Partial Beat Pipeline 붕괴, Backpressure에 의한 Hold-off)에 대한 동적 검증 및 Reference Model 교차 검증은 결함 없는 IP 딜리버리를 좌우합니다.
             </p>
           </div>
         </div>

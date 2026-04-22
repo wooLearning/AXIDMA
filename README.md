@@ -8,14 +8,22 @@ Open `docs/index.html` locally, or configure GitHub Pages to publish from the `d
 
 ## Edit Source
 
-The editable source lives in `guide/src/` and is assembled by:
+The editable source is split into content, styling, runtime behavior, and a small React app shell:
+
+- `guide/src/chapters/*.html`: chapter body content
+- `guide/src/assets/guide.css`: guide styling
+- `guide/src/assets/guide.js`: diagram/animation helpers
+- `guide/react_src/src/app.js`: React shell for tabs, layout, and rendering
+- `guide/react_src/vendor/*.js`: vendored React runtime used by the single-file build
+
+Build with the same command:
 
 ```bash
 cd guide
 python3 build_guide.py
 ```
 
-That command updates both `guide/Guide.html` and `docs/index.html`.
+That command updates both `guide/Guide.html` and `docs/index.html`. GitHub Pages still serves `docs/index.html`.
 
 ## Local Study Material
 

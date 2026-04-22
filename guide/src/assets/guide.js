@@ -50,6 +50,7 @@
       }
     };
 
+    window.lucide = lucide;
     lucide.createIcons();
 
     // Tab Switching Logic
@@ -215,6 +216,22 @@
       const dataProg0 = document.getElementById('data-prog-0');
       const dataChunk1 = document.getElementById('data-chunk-1');
       const dataProg1 = document.getElementById('data-prog-1');
+      const bd0Tag = document.getElementById('bd-0-tag');
+      const bd2Tag = document.getElementById('bd-2-tag');
+
+      const sgElements = [btn, pointer, dmaIcon, bd0, bd1, bd2, bd0Status, bd1Status, dataChunk0, dataProg0, dataChunk1, dataProg1, bd0Tag, bd2Tag];
+      if (sgElements.some((element) => !element)) {
+        isSGAnimating = false;
+        return;
+      }
+
+      const abortIfSceneUnmounted = () => {
+        if (sgElements.some((element) => !element.isConnected)) {
+          isSGAnimating = false;
+          return true;
+        }
+        return false;
+      };
 
       // Reset
       pointer.style.opacity = '0';
@@ -234,10 +251,11 @@
       bd1Status.innerHTML = "Waiting";
       bd1Status.className = "italic text-gray-500";
 
-      document.getElementById('bd-0-tag').classList.remove('hidden');
-      document.getElementById('bd-2-tag').classList.remove('hidden');
+      bd0Tag.classList.remove('hidden');
+      bd2Tag.classList.remove('hidden');
 
       await sleep(800);
+      if (abortIfSceneUnmounted()) return;
 
       // Fetch BD0
       pointer.style.opacity = '1';
@@ -247,6 +265,7 @@
       bd0Status.className = "font-bold text-[#3182f6] flex items-center gap-1";
       lucide.createIcons();
       await sleep(1500);
+      if (abortIfSceneUnmounted()) return;
 
       // Transfer BD0 (Gather Data)
       setElementClass(dmaIcon, "w-4 h-4 text-purple-500 animate-pulse inline-icon");
@@ -259,6 +278,7 @@
       dataProg0.style.transition = 'width 1.5s linear';
       dataProg0.style.width = '100%';
       await sleep(1500);
+      if (abortIfSceneUnmounted()) return;
       
       dataChunk0.classList.remove('data-chunk-active');
       dataChunk0.classList.add('data-chunk-done');
@@ -271,6 +291,7 @@
       bd0Status.className = "font-bold text-[#f59e0b] flex items-center gap-1";
       lucide.createIcons();
       await sleep(1000);
+      if (abortIfSceneUnmounted()) return;
 
       // Complete BD0
       bd0.classList.remove('bd-updating');
@@ -279,11 +300,13 @@
       bd0Status.className = "font-bold text-[#22c55e] flex items-center gap-1";
       lucide.createIcons();
       await sleep(800);
+      if (abortIfSceneUnmounted()) return;
 
       // Move to BD1 ----------------------------------------
       pointer.style.top = '145px'; 
       setElementClass(dmaIcon, "w-4 h-4 text-[#3182f6] animate-pulse inline-icon");
       await sleep(800);
+      if (abortIfSceneUnmounted()) return;
 
       // Fetch BD1
       bd1.classList.add('bd-active');
@@ -291,6 +314,7 @@
       bd1Status.className = "font-bold text-[#3182f6] flex items-center gap-1";
       lucide.createIcons();
       await sleep(1500);
+      if (abortIfSceneUnmounted()) return;
 
       // Transfer BD1 (Gather Data)
       setElementClass(dmaIcon, "w-4 h-4 text-pink-500 animate-pulse inline-icon");
@@ -302,6 +326,7 @@
       dataProg1.style.transition = 'width 1s linear';
       dataProg1.style.width = '100%';
       await sleep(1000);
+      if (abortIfSceneUnmounted()) return;
       
       dataChunk1.classList.remove('data-chunk-active');
       dataChunk1.classList.add('data-chunk-done');
@@ -314,6 +339,7 @@
       bd1Status.className = "font-bold text-[#f59e0b] flex items-center gap-1";
       lucide.createIcons();
       await sleep(1000);
+      if (abortIfSceneUnmounted()) return;
 
       // Complete BD1
       bd1.classList.remove('bd-updating');
@@ -322,24 +348,28 @@
       bd1Status.className = "font-bold text-[#22c55e] flex items-center gap-1";
       lucide.createIcons();
       await sleep(800);
+      if (abortIfSceneUnmounted()) return;
 
       // Check Tail ----------------------------------------
       pointer.style.top = '270px';
       setElementClass(dmaIcon, "w-4 h-4 text-red-500 animate-bounce inline-icon");
       await sleep(800);
+      if (abortIfSceneUnmounted()) return;
 
       bd2.classList.add('bd-active');
-      document.getElementById('bd-2-tag').classList.add('animate-pulse');
-      document.getElementById('bd-2-tag').classList.remove('hidden');
+      bd2Tag.classList.add('animate-pulse');
+      bd2Tag.classList.remove('hidden');
       await sleep(1500);
+      if (abortIfSceneUnmounted()) return;
 
       // Interrupt
       setElementClass(dmaIcon, "w-4 h-4 text-[#22c55e] inline-icon");
       lucide.createIcons();
       await sleep(2000);
+      if (abortIfSceneUnmounted()) return;
       
       pointer.style.opacity = '0';
-      document.getElementById('bd-2-tag').classList.remove('animate-pulse');
+      bd2Tag.classList.remove('animate-pulse');
       bd2.classList.remove('bd-active');
 
       btn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> SG 리스트 재실행`;

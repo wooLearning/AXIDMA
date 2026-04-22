@@ -4,8 +4,8 @@
     <section id="csr-section" class="tab-content space-y-10">
       <div class="space-y-4 border-b border-gray-200 pb-6">
         <span class="text-[#3182f6] font-bold text-sm tracking-wide">Chapter 5. Memory Mapped I/O</span>
-        <h2 class="text-3xl font-extrabold text-[#191f28]">인터랙티브 CSR 레지스터 맵</h2>
-        <p class="text-[#4e5968] text-lg">CPU가 DMA를 제어하기 위해 접근하는 memory-mapped register를 역할과 비트 단위로 정리합니다.</p>
+        <h2 class="text-3xl font-extrabold text-[#191f28]">Interactive CSR Memory Map</h2>
+        <p class="text-[#4e5968] text-lg">CPU-DMA 간의 비동기 제어 권한 이양을 위한 Memory-Mapped Register 구조와 Bit-Field 정의를 심층 조명합니다.</p>
       </div>
 
       <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
@@ -52,21 +52,21 @@
         <div class="grid lg:grid-cols-2 gap-8 mt-10">
           <div>
             <h3 class="text-lg font-bold text-[#191f28] mb-4 border-l-4 border-[#3182f6] pl-3">5.2 Control Register</h3>
-            <p class="text-sm text-gray-600 mb-4">CONTROL은 DMA를 켜고 인터럽트 정책을 정합니다. pending interrupt는 여기서 clear합니다.</p>
+            <p class="text-sm text-gray-600 mb-4">CONTROL 레지스터는 하드웨어 코어의 Global 활성화 및 Interrupt 정책을 관장하며, Pending Interrupt의 명시적 초기화(W1C) 기능을 담당합니다.</p>
             <div class="flex border-2 border-gray-300 rounded-lg overflow-hidden h-16 mb-4 text-center text-[11px] font-bold">
-              <div class="flex-1 bg-blue-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Enable: DMA 전체 동작을 허용하는 최상위 스위치입니다. 꺼져 있으면 읽기와 쓰기 엔진이 동작하지 않습니다.')">
+              <div class="flex-1 bg-blue-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Enable (EN): 하드웨어 엔진의 최상위 구동 스위치입니다. Disabled 상태 시 Read/Write 파이프라인이 전면 동결됩니다.')">
                 <span class="text-gray-500 font-normal">31</span>
                 <span class="text-blue-700">EN</span>
               </div>
-              <div class="flex-1 bg-gray-100 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Reserved: 현재 설명 범위에서는 사용하지 않는 예약 영역입니다.')">
+              <div class="flex-1 bg-gray-100 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Reserved (RSVD): 예약 영역으로, 현재 아키텍처 범위 내에서 사용되지 않습니다.')">
                 <span class="text-gray-400 font-normal">30 .. 2</span>
                 <span class="text-gray-400">RSVD</span>
               </div>
-              <div class="w-20 bg-orange-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Interrupt Pending: 완료 알림이 아직 처리되지 않았음을 나타냅니다. 소프트웨어가 확인 후 clear합니다.')">
+              <div class="w-20 bg-orange-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('control-desc', 'Interrupt Pending (IP): 완료 통보가 대기 중(Pending)임을 식별합니다. 소프트웨어 ISR 계층에서 명시적으로 Clear해야 합니다.')">
                 <span class="text-gray-500 font-normal">1</span>
                 <span class="text-orange-600">IP</span>
               </div>
-              <div class="w-20 bg-green-50 flex flex-col justify-center bit-group" onmouseover="showDesc('control-desc', 'Interrupt Enable: 전송 완료 시 CPU에게 알림을 보낼지 결정합니다.')">
+              <div class="w-20 bg-green-50 flex flex-col justify-center bit-group" onmouseover="showDesc('control-desc', 'Interrupt Enable (IE): 비동기 트랜잭션 정상 완료 이벤트를 호스트 OS/Processor에 통지할지 허용 여부를 결정합니다.')">
                 <span class="text-gray-500 font-normal">0</span>
                 <span class="text-green-700">IE</span>
               </div>
@@ -78,29 +78,29 @@
 
           <div>
             <h3 class="text-lg font-bold text-[#191f28] mb-4 border-l-4 border-red-500 pl-3">5.3 Transfer Info Register</h3>
-            <p class="text-sm text-gray-600 mb-4">NUM은 시작 트리거이자 상태 요약 레지스터입니다. 소프트웨어는 보통 이 값을 써서 시작하고 다시 읽어 완료를 확인합니다.</p>
+            <p class="text-sm text-gray-600 mb-4">트랜잭션 실행 트리거 및 상태를 요약하는 복합 Register입니다. 펌웨어 로직은 본 영역을 기동 인가용으로 쓰거나 상태 검증용으로 읽습니다.</p>
             <div class="flex border-2 border-gray-300 rounded-lg overflow-hidden h-16 mb-4 text-center text-[11px] font-bold">
-              <div class="w-20 bg-purple-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Start: 전송을 시작하는 트리거입니다. 완료되면 자동으로 비활성 상태로 돌아갑니다.')">
+              <div class="w-20 bg-purple-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Start (GO): 하드웨어 기동 명령 비트. 트랜잭션이 성공적으로 종결 시 자동 강하(Self-clearing)되도록 설계되었습니다.')">
                 <span class="text-gray-500 font-normal">31</span>
                 <span class="text-purple-700">GO</span>
               </div>
-              <div class="w-20 bg-yellow-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Busy: 읽기 엔진 또는 쓰기 엔진 중 하나라도 처리 중이면 활성화됩니다.')">
+              <div class="w-20 bg-yellow-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Busy (BUSY): Read Module 또는 Write Module 중 한 개라도 FSM 트랜잭션을 진행하고 있는 점유율을 반영합니다.')">
                 <span class="text-gray-500 font-normal">30</span>
                 <span class="text-yellow-700">BUSY</span>
               </div>
-              <div class="w-20 bg-green-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Done: 읽기와 쓰기 흐름이 모두 마지막 응답까지 마쳤을 때 완료로 표시됩니다.')">
+              <div class="w-20 bg-green-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Done (DONE): Read와 Write 모듈 양단에서 모든 AXI Handshake 종결이 승인되었을 때 Assert됩니다.')">
                 <span class="text-gray-500 font-normal">29</span>
                 <span class="text-green-700">DONE</span>
               </div>
-              <div class="w-20 bg-gray-100 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', '28:24 Reserved.')">
+              <div class="w-20 bg-gray-100 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'Reserved (28:24)')">
                 <span class="text-gray-400 font-normal">28 .. 24</span>
                 <span class="text-gray-400">RSVD</span>
               </div>
-              <div class="w-24 bg-blue-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', '23:16 CHUNK: 한 번에 처리할 묶음 크기. data width의 배수여야 하며, 0이면 기본 data width 단위로 처리한다고 보면 된다.')">
+              <div class="w-24 bg-blue-50 flex flex-col justify-center border-r border-gray-300 bit-group" onmouseover="showDesc('num-desc', 'CHUNK Parameter (23:16): 물리 버스트의 단편화 크기 할당 파라미터. Data Width 배수로 정합되어야 하며, 0 인가 시 최소 단위(Base Beat)를 의미합니다.')">
                 <span class="text-gray-500 font-normal">23 .. 16</span>
                 <span class="text-blue-700">CHUNK</span>
               </div>
-              <div class="flex-1 bg-orange-50 flex flex-col justify-center bit-group" onmouseover="showDesc('num-desc', '15:0 BYTES: 총 이동 바이트 수. 16-bit 길이 필드이므로 최대 2^16-1 byte 범위를 표현할 수 있다.')">
+              <div class="flex-1 bg-orange-50 flex flex-col justify-center bit-group" onmouseover="showDesc('num-desc', 'Transfer Payload Length (15:0): 누적 요구 바이트 길이. 16비트로 매핑되어 최대 2^16-1의 범위가 한 번의 MMIO 트랜잭션에서 대응됩니다.')">
                 <span class="text-gray-500 font-normal">15 .. 0</span>
                 <span class="text-orange-600">BYTES</span>
               </div>
@@ -113,8 +113,8 @@
 
         <div class="mt-10 grid lg:grid-cols-[1.1fr_0.9fr] gap-8">
           <div>
-            <h3 class="text-lg font-bold text-[#191f28] mb-4 border-l-4 border-green-500 pl-3">5.4 SOURCE / DEST 주소 레지스터</h3>
-            <p class="text-sm text-gray-600 mb-4">주소 레지스터 자체는 단순하지만, 내부 core는 이 주소들의 하위 정렬 비트를 매우 민감하게 사용합니다.</p>
+            <h3 class="text-lg font-bold text-[#191f28] mb-4 border-l-4 border-green-500 pl-3">5.4 SOURCE/DEST Address Register</h3>
+            <p class="text-sm text-gray-600 mb-4">단순한 메모리 포인터 구조를 지니나, 하이엔드 트랜잭션에서는 이 주소의 하위 비트 Alignment 특성이 실질 성능 편향을 유도합니다.</p>
             <div class="overflow-x-auto">
               <table class="data-table">
                 <thead>
@@ -141,32 +141,32 @@
           </div>
 
           <div class="bg-[#f9fafb] rounded-2xl border border-gray-200 p-6">
-            <h3 class="text-lg font-bold text-[#191f28] mb-4">5.5 공개용 제어 알고리즘</h3>
+            <h3 class="text-lg font-bold text-[#191f28] mb-4">5.5 MMIO 시퀀스 체인 권장안</h3>
             <div class="space-y-3">
               <div class="bg-white border border-gray-200 rounded-xl p-4">
-                <p class="text-[12px] font-bold text-[#191f28]">A. 준비 단계</p>
-                <p class="text-[12px] text-[#4e5968] mt-1">CONTROL에서 DMA enable과 interrupt 정책을 먼저 결정합니다.</p>
+                <p class="text-[12px] font-bold text-[#191f28]">A. Initialization Phase</p>
+                <p class="text-[12px] text-[#4e5968] mt-1">CONTROL CSR을 선행 조작하여 DMA 구동 허가 상태와 비동기 Interrupt 활성 범위를 확립합니다.</p>
               </div>
               <div class="bg-white border border-gray-200 rounded-xl p-4">
-                <p class="text-[12px] font-bold text-[#191f28]">B. 주소 단계</p>
-                <p class="text-[12px] text-[#4e5968] mt-1">SOURCE와 DEST에 메모리 시작 주소를 넣습니다. 두 주소의 alignment 관계가 전송 품질을 좌우합니다.</p>
+                <p class="text-[12px] font-bold text-[#191f28]">B. Address Mapping Phase</p>
+                <p class="text-[12px] text-[#4e5968] mt-1">SOURCE 및 DEST 레지스터 쌍을 매핑합니다. 두 영역 간의 Alignment 대칭성이 Bus 효율 최적화를 보장합니다.</p>
               </div>
               <div class="bg-white border border-gray-200 rounded-xl p-4">
-                <p class="text-[12px] font-bold text-[#191f28]">C. 시작 단계</p>
-                <p class="text-[12px] text-[#4e5968] mt-1">NUM에 total bytes와 chunk 정보를 담고 GO 의미의 start trigger를 줍니다.</p>
+                <p class="text-[12px] font-bold text-[#191f28]">C. Execution Trigger Phase</p>
+                <p class="text-[12px] text-[#4e5968] mt-1">NUM 컨트롤 구조체에 누적 Transfer Byte 포맷과 Burst Chunk 배분 지수를 동시 합성하여 GO 명령을 인가합니다.</p>
               </div>
               <div class="bg-white border border-gray-200 rounded-xl p-4">
-                <p class="text-[12px] font-bold text-[#191f28]">D. 관찰 단계</p>
-                <p class="text-[12px] text-[#4e5968] mt-1">BUSY/DONE/GO 상태 또는 interrupt pending을 확인해 완료를 판단합니다.</p>
+                <p class="text-[12px] font-bold text-[#191f28]">D. Completion Verification Phase</p>
+                <p class="text-[12px] text-[#4e5968] mt-1">BUSY 플래그 하강 또는 Interrupt Signal 인입을 근거로 파이프라인 무결성을 진단합니다.</p>
               </div>
             </div>
             <p class="text-[13px] text-[#4e5968] mt-3 leading-relaxed">
-              이 흐름은 CPU 드라이버든 BFM 검증이든 공통으로 나타나는 MMIO 패턴입니다. 즉, <strong>CSR 맵은 단순하지만 상태 전이와 정렬 제약은 내부 제어기가 책임진다</strong>고 이해하면 됩니다.
+              위 모델링은 일반 프로세서 인터페이스 뿐 아니라 BFM 시뮬레이션 환경에서도 동일하게 통용되는 표준적 MMIO 패턴입니다. <strong>소프트웨어 Layer는 제어의 타이밍을 지휘할 뿐, 물리적 전송 상태 전이 및 Alignment 분할은 하드웨어 코어가 자율 통제합니다.</strong>
             </p>
             <div class="mt-5 bg-white border border-gray-200 rounded-xl p-4">
-              <p class="text-[12px] font-bold text-[#191f28]">실무 체크</p>
+              <p class="text-[12px] font-bold text-[#191f28]">실무 아키텍트 가이드</p>
               <p class="text-[12px] text-[#4e5968] mt-1 leading-relaxed">
-                CHUNK는 data bus width의 배수로 잡는 것이 안전합니다. 0으로 두면 data width 단위의 기본 묶음처럼 해석할 수 있고, 너무 큰 CHUNK는 FIFO depth와 backpressure 조건을 같이 봐야 합니다.
+                가변 CHUNK 길이는 AXI Databus 폭(Width)에 대한 직교배수로 설정함이 원칙입니다. 과도한 CHUNK 스펙의 오버 커밋(Over-commit)은 FIFO Depth Capacity와의 상관관계에 따라 시스템 Bus Deadlock을 초래할 수 있음에 유의하십시오.
               </p>
             </div>
           </div>
